@@ -8,6 +8,10 @@ Documentation on http://graphwalker.org/
 
 ## Get the source code and build all modules
 
+> [!NOTE]
+> 
+> Use Java 11.
+
 ```bash
 git clone https://github.com/GraphWalker/graphwalker-project.git
 cd graphwalker-project
