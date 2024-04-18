@@ -20,6 +20,7 @@ public class DirectedChinesePostman implements Algorithm {
     this.context = context;
     this.model = context.getModel();
     this.balance = new int[vertexCount()];
+    this.flow = new int[vertexCount()][vertexCount()];
     setUp();
   }
 
