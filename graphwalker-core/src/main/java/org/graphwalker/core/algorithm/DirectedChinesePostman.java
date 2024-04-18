@@ -53,6 +53,31 @@ public class DirectedChinesePostman implements Algorithm {
     return false;
   }
 
+  private int[] getNegativeVertices(int[] _balance) {
+    int negVertexCount = 0;
+    for (int i = 0; i < vertexCount(); i++)
+      if (_balance[i] < 0) negVertexCount++;
+
+    int[] negativeVertices = new int[negVertexCount];
+    for (int i = 0, j = 0; i < vertexCount(); i++)
+      if (_balance[i] < 0) negativeVertices[j++] = i;
+
+    return negativeVertices;
+  }
+
+  private int[] getPositiveVertices(int[] _balance) {
+    // TODO: Reduce code duplication with getNegativeVertices
+    int posVertexCount = 0;
+    for (int i = 0; i < vertexCount(); i++)
+      if (_balance[i] > 0) posVertexCount++;
+
+    int[] positiveVertices = new int[posVertexCount];
+    for (int i = 0, j = 0; i < vertexCount(); i++)
+      if (_balance[i] > 0) positiveVertices[j++] = i;
+
+    return positiveVertices;
+  }
+
   private int vertexCount() {
     return model.getVertices().size();
   }
