@@ -12,6 +12,9 @@ public class DirectedChinesePostman implements Algorithm {
   private final Context context;
   private final RuntimeModel model;
   private final int[] balance;
+  private final int[][] flow;
+  private int[] negativeVertices;
+  private int[] positiveVertices;
 
   public DirectedChinesePostman(Context context) {
     this.context = context;
@@ -45,7 +48,17 @@ public class DirectedChinesePostman implements Algorithm {
   private void findInitialSolution() {
     int[] tempBalance = balance.clone();
 
-    // TODO
+    negativeVertices = getNegativeVertices(tempBalance);
+    positiveVertices = getPositiveVertices(tempBalance);
+
+    for (int vertex : negativeVertices) {
+      for (int otherVertex : positiveVertices) {
+        int flow = Math.min(-tempBalance[vertex], tempBalance[otherVertex]);
+        tempBalance[vertex] += flow;
+        tempBalance[otherVertex] -= flow;
+        this.flow[vertex][otherVertex] = flow;
+      }
+    }
   }
 
   private boolean improveSolution() {
