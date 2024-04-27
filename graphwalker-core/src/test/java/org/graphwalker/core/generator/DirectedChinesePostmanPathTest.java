@@ -1,6 +1,5 @@
 package org.graphwalker.core.generator;
 
-import org.graphwalker.core.condition.EdgeCoverage;
 import org.graphwalker.core.condition.Never;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.TestExecutionContext;
