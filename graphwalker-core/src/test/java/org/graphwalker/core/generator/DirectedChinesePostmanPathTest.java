@@ -34,7 +34,7 @@ public class DirectedChinesePostmanPathTest {
 
   @Test
   public void paperExample() {
-    Context context = new TestExecutionContext(model, new DirectedChinesePostmanPath(new Never()));
+    Context context = new TestExecutionContext(model, new DirectedChinesePostmanPath(new Never())); // Never is used since the hasNextStep also return false if no more edges are available
     context.setProfiler(new SimpleProfiler());
     Deque<Builder<? extends Element>> expectedElements = new ArrayDeque<>(Arrays.asList(b, v2, e, v3, f, v0, a, v1, c, v2, e, v3, f, v0, a, v1, d, v3, f));
     context.setCurrentElement(context.getModel().getElementById("start"));
