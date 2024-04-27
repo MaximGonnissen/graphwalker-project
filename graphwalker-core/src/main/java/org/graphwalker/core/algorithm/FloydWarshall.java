@@ -50,6 +50,16 @@ public class FloydWarshall implements Algorithm {
     createPredecessorMatrix(model.getElements(), distances);
   }
 
+  /***
+   * Alternative FloydWarshall constructor
+   * @param model the runtime model to be used
+   */
+  public FloydWarshall(RuntimeModel model) {
+    this.model = model;
+    this.distances = createDistanceMatrix(model, model.getElements());
+    createPredecessorMatrix(model.getElements(), distances);
+  }
+
   private int[][] createDistanceMatrix(RuntimeModel model, List<Element> elements) {
     int[][] distances = new int[elements.size()][elements.size()];
     for (int[] row : distances) {
