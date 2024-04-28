@@ -112,6 +112,8 @@ public class GeneratorLoader extends GeneratorParserBaseListener {
       pathGenerators.add(new ShortestAllPaths(stopCondition));
     } else if ("predefined_path".equals(generatorName) || "predefinedpath".equals(generatorName)) {
       pathGenerators.add(new PredefinedPath(stopCondition));
+    } else if ("directed_chinese_postman".equals(generatorName) || "directedchinesepostman".equals(generatorName)) {
+      pathGenerators.add(new DirectedChinesePostmanPath(stopCondition));
     } else {
         PathGenerator pathGenerator = GeneratorFactoryScanner.get(generatorName);
         pathGenerator.setStopCondition(stopCondition);
