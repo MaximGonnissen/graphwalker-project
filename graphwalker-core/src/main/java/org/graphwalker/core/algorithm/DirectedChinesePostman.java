@@ -1,5 +1,7 @@
 package org.graphwalker.core.algorithm;
 
+import org.graphwalker.core.generator.NoPathFoundException;
+import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Element;
@@ -37,6 +39,11 @@ public class DirectedChinesePostman implements Algorithm {
     if (context.getCurrentElement() instanceof Edge.RuntimeEdge) {
       return ((Edge.RuntimeEdge) context.getCurrentElement()).getTargetVertex();
     }
+
+    if (dCPPath.isEmpty()) {
+      return randomStep();  // TODO: This is a temporary(?) fix to prevent the algorithm from getting stuck when using multiple models
+    }
+
     return dCPPath.remove(0);
   }
 
@@ -234,6 +241,15 @@ public class DirectedChinesePostman implements Algorithm {
 
   private FloydWarshall getFloydWarshall() {
     return context.getAlgorithm(FWAlgorithm);
+  }
+
+  private Element randomStep() {
+    Element currentElement = context.getCurrentElement();
+    List<Element> elements = context.filter(context.getModel().getElements(currentElement));
+    if (elements.isEmpty()) {
+      throw new NoPathFoundException(context.getCurrentElement());
+    }
+    return elements.get(SingletonRandomGenerator.nextInt(elements.size()));
   }
 
   private boolean isStronglyConnected(FloydWarshall floydWarshall) {
