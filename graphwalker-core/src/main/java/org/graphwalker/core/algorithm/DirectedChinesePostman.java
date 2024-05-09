@@ -27,12 +27,14 @@ public class DirectedChinesePostman implements Algorithm {
     this.context = context;
     this.state = new DCPState(context.getModel());
     dCPPath = setUp(state.runtimeModel.getVertices().indexOf((RuntimeVertex) context.getCurrentElement()));
+//    this.printModel();
   }
 
   public DirectedChinesePostman(Context context, int startVertex) {
     this.context = context;
     this.state = new DCPState(context.getModel());
     dCPPath = setUp(startVertex);
+//    this.printModel();
   }
 
   public Element getNextElement() {
@@ -282,6 +284,22 @@ public class DirectedChinesePostman implements Algorithm {
       for (int j = 0; j < vertexCount(state.runtimeModel); j++) {
         if (state.flow[i][j] > 0)
           System.out.println("Flow from " + state.runtimeModel.getVertices().get(i).getName() + " to " + state.runtimeModel.getVertices().get(j).getName() + " is " + state.flow[i][j]);
+      }
+    }
+  }
+
+  public void printModel() {
+    for (RuntimeVertex vertex : state.runtimeModel.getVertices()) {
+      String vertexPrint = "Vertex: " + vertex.getName();
+      if (vertex.hasSharedState()) {
+        vertexPrint += " (Shared state: " + vertex.getSharedState() + ")";
+      }
+      System.out.println(vertexPrint);
+      for (Edge.RuntimeEdge edge : state.runtimeModel.getOutEdges(vertex)) {
+        System.out.println("\t-(out)-> Edge: " + edge.getName());
+      }
+      for (Edge.RuntimeEdge edge : state.runtimeModel.getInEdges(vertex)) {
+        System.out.println("\t<-(in)- Edge: " + edge.getName());
       }
     }
   }
