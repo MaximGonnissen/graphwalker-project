@@ -18,7 +18,6 @@ import java.util.List;
 public class DirectedChinesePostman implements Algorithm {
 
   private static final Class<FloydWarshall> FWAlgorithm = FloydWarshall.class;
-
   private final Context context;
   private final DCPState state;
   private final List<Edge.RuntimeEdge> dCPPath;
@@ -26,11 +25,11 @@ public class DirectedChinesePostman implements Algorithm {
   public DirectedChinesePostman(Context context) {
     this.context = context;
     this.state = new DCPState(context.getModel());
-    dCPPath = setUp(state.runtimeModel.getVertices().indexOf((RuntimeVertex) context.getCurrentElement()));
+    dCPPath = setUp((RuntimeVertex) context.getCurrentElement());
 //    this.printModel();
   }
 
-  public DirectedChinesePostman(Context context, int startVertex) {
+  public DirectedChinesePostman(Context context, RuntimeVertex startVertex) {
     this.context = context;
     this.state = new DCPState(context.getModel());
     dCPPath = setUp(startVertex);
@@ -53,7 +52,7 @@ public class DirectedChinesePostman implements Algorithm {
     return !dCPPath.isEmpty();
   }
 
-  public List<Edge.RuntimeEdge> setUp(int startVertex) {
+  public List<Edge.RuntimeEdge> setUp(RuntimeVertex startVertex) {
     FloydWarshall floydWarshall = getFloydWarshall();
 
     if (!isStronglyConnected(floydWarshall)) throw new AlgorithmException("The graph is not strongly connected.");
@@ -63,7 +62,9 @@ public class DirectedChinesePostman implements Algorithm {
     findInitialSolution();
 //    while (true) if (!improveSolution()) break; --> Never able to run due to cost always being 0
 
-    return createPath(startVertex);
+    int startVertexIndex = state.runtimeModel.getVertices().indexOf(startVertex);
+
+    return createPath(startVertexIndex);
   }
 
   private void leastCostPaths() {
