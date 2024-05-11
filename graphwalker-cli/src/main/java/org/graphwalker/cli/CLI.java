@@ -42,10 +42,7 @@ import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.MachineException;
 import org.graphwalker.core.machine.SimpleMachine;
-import org.graphwalker.core.model.Edge;
-import org.graphwalker.core.model.Element;
-import org.graphwalker.core.model.Requirement;
-import org.graphwalker.core.model.Vertex;
+import org.graphwalker.core.model.*;
 import org.graphwalker.dsl.antlr.DslException;
 import org.graphwalker.dsl.antlr.generator.GeneratorFactory;
 import org.graphwalker.io.common.ResourceUtils;
@@ -84,6 +81,7 @@ public class CLI {
   private Convert convert;
   private Source source;
   private Check check;
+  private Unify unify;
 
   enum Command {
     NONE,
@@ -93,7 +91,8 @@ public class CLI {
     REQUIREMENTS,
     CONVERT,
     SOURCE,
-    CHECK
+    CHECK,
+    UNIFY
   }
 
   private Command command = Command.NONE;
@@ -140,6 +139,9 @@ public class CLI {
     check = new Check();
     jc.addCommand("check", check);
 
+    unify = new Unify();
+    jc.addCommand("unify", unify);
+
     try {
       jc.parse(args);
       setLogLevel(options);
@@ -176,6 +178,9 @@ public class CLI {
       } else if (jc.getParsedCommand().equalsIgnoreCase("check")) {
         command = Command.CHECK;
         return runCommandCheck();
+      } else if (jc.getParsedCommand().equalsIgnoreCase("unify")) {
+        command = Command.UNIFY;
+        runCommandUnify();
       }
     } catch (UnsupportedFileFormat | MissingCommandException e) {
       System.err.println(e.getMessage() + System.lineSeparator());
@@ -407,6 +412,9 @@ public class CLI {
       }
       System.out.println(footer);
     }
+  }
+
+  private void runCommandUnify() throws Exception, UnsupportedFileFormat {
   }
 
   private void runCommandOffline() throws Exception, UnsupportedFileFormat {
