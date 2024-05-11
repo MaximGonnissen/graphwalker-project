@@ -42,7 +42,10 @@ import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.MachineException;
 import org.graphwalker.core.machine.SimpleMachine;
-import org.graphwalker.core.model.*;
+import org.graphwalker.core.model.Edge;
+import org.graphwalker.core.model.Element;
+import org.graphwalker.core.model.Requirement;
+import org.graphwalker.core.model.Vertex;
 import org.graphwalker.dsl.antlr.DslException;
 import org.graphwalker.dsl.antlr.generator.GeneratorFactory;
 import org.graphwalker.io.common.ResourceUtils;
@@ -82,19 +85,6 @@ public class CLI {
   private Source source;
   private Check check;
   private Unify unify;
-
-  enum Command {
-    NONE,
-    OFFLINE,
-    ONLINE,
-    METHODS,
-    REQUIREMENTS,
-    CONVERT,
-    SOURCE,
-    CHECK,
-    UNIFY
-  }
-
   private Command command = Command.NONE;
 
   public static void main(String[] args) {
@@ -303,11 +293,7 @@ public class CLI {
       String url = "http://0.0.0.0:" + online.port;
 
       HttpServer server = GrizzlyServerFactory.createHttpServer(url, rc);
-      System.out.println("Try http://localhost:"
-        + online.port
-        + "/graphwalker/hasNext or http://localhost:"
-        + online.port
-        + "/graphwalker/getNext");
+      System.out.println("Try http://localhost:" + online.port + "/graphwalker/hasNext or http://localhost:" + online.port + "/graphwalker/getNext");
       System.out.println("Press Control+C to end...");
 
       try {
@@ -315,7 +301,6 @@ public class CLI {
         Thread.currentThread().join();
       } catch (InterruptedException e) {
         // Typically the user pressed Ctrl+C
-        ;
       } catch (Exception e) {
         logger.error("An error occurred when running command online: ", e);
       } finally {
@@ -334,9 +319,7 @@ public class CLI {
     try {
       contexts = inputFactory.create(Paths.get(inputFileName));
     } catch (DslException e) {
-      throw new Exception("The following syntax error occurred when parsing: '" + inputFileName + "'."
-                          + System.lineSeparator()
-                          + "Syntax Error: " + e.getMessage() + System.lineSeparator());
+      throw new Exception("The following syntax error occurred when parsing: '" + inputFileName + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage() + System.lineSeparator());
     }
 
     if (convert.blocked) {
@@ -361,9 +344,7 @@ public class CLI {
         throw new RuntimeException("No valid models found in: '" + modelFileName + "'.");
       }
     } catch (DslException e) {
-      throw new Exception("The following syntax error occurred when parsing: '" + modelFileName + "'."
-                          + System.lineSeparator()
-                          + "Syntax Error: " + e.getMessage());
+      throw new Exception("The following syntax error occurred when parsing: '" + modelFileName + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
     }
 
     if (source.blocked) {
@@ -427,7 +408,7 @@ public class CLI {
       TestExecutor executor = new TestExecutor(contexts);
       executor.getMachine().addObserver((machine, element, type) -> {
         if (EventType.BEFORE_ELEMENT.equals(type)) {
-          System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited).toString());
+          System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited));
         }
       });
 
@@ -450,7 +431,7 @@ public class CLI {
       SimpleMachine machine = new SimpleMachine(contexts);
       while (machine.hasNextStep()) {
         machine.getNextStep();
-        System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited).toString());
+        System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited));
       }
     }
   }
@@ -465,16 +446,13 @@ public class CLI {
       try {
         contexts = factory.create(Paths.get(modelFileName));
       } catch (DslException e) {
-        throw new Exception("The following syntax error occurred when parsing: '" + modelFileName + "'."
-                            + System.lineSeparator()
-                            + "Syntax Error: " + e.getMessage());
+        throw new Exception("The following syntax error occurred when parsing: '" + modelFileName + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
       }
 
       // TODO fix all occurrences of get(0) is not safe
       contexts.get(0).setPathGenerator(GeneratorFactory.parse((String) itr.next()));
 
-      if (triggerOnce &&
-        (!offline.startElement.isEmpty() || !online.startElement.isEmpty())) {
+      if (triggerOnce && (!offline.startElement.isEmpty() || !online.startElement.isEmpty())) {
         triggerOnce = false;
 
         List<Element> elements = null;
@@ -522,12 +500,14 @@ public class CLI {
       try {
         contexts = factory.create(Paths.get(modelFileName));
       } catch (DslException e) {
-        throw new Exception("The following syntax error occurred when parsing: '" + modelFileName + "'."
-                            + System.lineSeparator()
-                            + "Syntax Error: " + e.getMessage());
+        throw new Exception("The following syntax error occurred when parsing: '" + modelFileName + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
       }
       executionContexts.addAll(contexts);
     }
     return executionContexts;
+  }
+
+  enum Command {
+    NONE, OFFLINE, ONLINE, METHODS, REQUIREMENTS, CONVERT, SOURCE, CHECK, UNIFY
   }
 }
