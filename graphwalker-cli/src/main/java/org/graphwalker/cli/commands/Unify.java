@@ -21,4 +21,7 @@ public class Unify {
 
   @Parameter(names = {"--verbose", "-v"}, required = false, arity = 1, description = "Prints out more information.")
   public boolean verbose = false;
+
+  @Parameter(names = {"--rounding", "-r"}, required = false, arity = 1, description = "Rounding of the coordinates. ~100 tends to result in straight, albeit cramped, graphs. Default is no rounding.")
+  public int rounding = 0;
 }
