@@ -478,7 +478,6 @@ public class CLI {
     if (unify.verbose) System.out.println("1st stage model unification - copying non-shared vertices & edges");
     {
       for (Context context : contexts) {
-        if (unify.verbose) System.out.println("> " + context.getModel().getName());
         String prefix = context.getModel().getName() + "_";
         Model model = new Model(context.getModel());
 
@@ -572,10 +571,25 @@ public class CLI {
       }
     }
 
-    // Third stage model unification, eliminate shared vertices & forward outgoing shared edges
-    if (unify.verbose) System.out.println("3rd stage model unification - eliminating shared vertices and forwarding original outgoing edges from shared vertices");
+    // Third stage model unification, create and connect (previously-)shared states & edges
+    if (unify.verbose) System.out.println("3rd stage model unification - creating and connecting (previously-)shared states & edges");
     {
+      Map<String, Vertex> sharedVertices = new HashMap<>();
 
+      for (Context context : contexts) {
+        Model model = new Model(context.getModel());
+
+        // We create a single vertex for each shared state
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() == null) continue;
+          if (sharedVertices.containsKey(vertex.getSharedState())) continue;
+
+          Vertex newVertex = new Vertex();
+          newVertex.setName(vertex.getSharedState());
+          sharedVertices.put(vertex.getSharedState(), newVertex);
+          unifiedModel.addVertex(newVertex);
+        }
+      }
     }
 
     // Add to context
