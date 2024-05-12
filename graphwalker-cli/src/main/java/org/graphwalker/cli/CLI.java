@@ -572,7 +572,8 @@ public class CLI {
     }
 
     // Third stage model unification, create and connect (previously-)shared states & edges
-    if (unify.verbose) System.out.println("3rd stage model unification - creating and connecting (previously-)shared states & edges");
+    if (unify.verbose)
+      System.out.println("3rd stage model unification - creating and connecting (previously-)shared states & edges");
     {
       Map<String, Vertex> sharedVertices = new HashMap<>();
 
@@ -588,6 +589,37 @@ public class CLI {
           newVertex.setName(vertex.getSharedState());
           sharedVertices.put(vertex.getSharedState(), newVertex);
           unifiedModel.addVertex(newVertex);
+        }
+
+        for (Edge edge : model.getEdges()) {
+          // If the edge doesn't have either a shared source or target, we skip it, since we've already copied it
+          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)
+            continue;
+          Vertex sourceVertex = edge.getSourceVertex();
+          Vertex targetVertex = edge.getTargetVertex();
+          if (sourceVertex.getSharedState() != null) {
+            sourceVertex = sharedVertices.get(sourceVertex.getSharedState());
+          } else {
+            String unifiedVertexName = getPrefixedString(sourceVertex.getName(), context.getModel().getName() + "_");
+            sourceVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+            if (sourceVertex == null) {
+              throw new RuntimeException("Could not find source vertex for edge: " + edge.getId());
+            }
+          }
+          if (targetVertex.getSharedState() != null) {
+            targetVertex = sharedVertices.get(targetVertex.getSharedState());
+          } else {
+            String unifiedVertexName = getPrefixedString(targetVertex.getName(), context.getModel().getName() + "_");
+            targetVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+            if (targetVertex == null) {
+              throw new RuntimeException("Could not find target vertex for edge: " + edge.getId());
+            }
+          }
+
+          Edge newEdge = copyEdge(edge, context.getModel().getName() + "_");
+          newEdge.setSourceVertex(sourceVertex);
+          newEdge.setTargetVertex(targetVertex);
+          unifiedModel.addEdge(newEdge);
         }
       }
     }
@@ -633,7 +665,7 @@ public class CLI {
     return newVertex;
   }
 
-  private Edge copyEdge(Edge edge, String prefix, Model model) {
+  private Edge copyEdge(Edge edge, String prefix) {
     Edge newEdge = new Edge();
     if (edge.getName() != null) {
       newEdge.setName(getPrefixedString(edge.getName(), prefix));
@@ -650,6 +682,12 @@ public class CLI {
     if (edge.getRequirements() != null) {
       newEdge.setRequirements(edge.getRequirements());
     }
+
+    return newEdge;
+  }
+
+  private Edge copyEdge(Edge edge, String prefix, Model model) {
+    Edge newEdge = copyEdge(edge, prefix);
 
     Vertex sourceVertex = null;
     Vertex targetVertex = null;
