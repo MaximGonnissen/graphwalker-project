@@ -436,6 +436,10 @@ public class CLI {
     String inputFileName = unify.input;
     String outputFileName = unify.output;
 
+    if (unify.rounding <= 0) {
+      unify.rounding = 1;
+    }
+
     // Sort out the output file name
     if (outputFileName == null || outputFileName.isEmpty()) {
       outputFileName = inputFileName.replaceFirst("\\..*$", "_unified." + unify.format.toLowerCase());
@@ -471,23 +475,107 @@ public class CLI {
     unifiedModel.setName(Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified");
 
     // First stage model unification, copy all non-shared vertices & edges
-    if (unify.verbose) System.out.println("1st stage model unification - copying non-shared vertices");
-    for (Context context : contexts) {
-      if (unify.verbose) System.out.println("> " + context.getModel().getName());
-      String prefix = context.getModel().getName() + "_";
-      Model model = new Model(context.getModel());
+    if (unify.verbose) System.out.println("1st stage model unification - copying non-shared vertices & edges");
+    {
+      for (Context context : contexts) {
+        if (unify.verbose) System.out.println("> " + context.getModel().getName());
+        String prefix = context.getModel().getName() + "_";
+        Model model = new Model(context.getModel());
 
-      // Add non-shared vertices
-      for (Vertex vertex : model.getVertices()) {
-        if (vertex.getSharedState() == null)  // We handle shared states separately
-          unifiedModel.addVertex(copyVertex(vertex, prefix));
-      }
+        // Find centre of local graph so we can centre the local graph in the unified model for later spreading
+        double local_offset_x = 0;
+        double local_offset_y = 0;
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() != null)
+            continue;  // We don't take into account shared states for the local offset, since these aren't copied
+          if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
+            local_offset_x += (double) vertex.getProperty("x");
+            local_offset_y += (double) vertex.getProperty("y");
+          }
+        }
 
-      // Add non-shared edges
-      for (Edge edge : model.getEdges()) {
-        if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)  // We handle shared states separately
-          unifiedModel.addEdge(copyEdge(edge, prefix, unifiedModel));
+        local_offset_x /= model.getVertices().size();
+        local_offset_y /= model.getVertices().size();
+
+        // Add non-shared vertices
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() == null)  // We handle shared states separately
+          {
+            Vertex newVertex = copyVertex(vertex, prefix);
+            newVertex.setProperty("x", (double) newVertex.getProperty("x") - local_offset_x);
+            newVertex.setProperty("y", (double) newVertex.getProperty("y") - local_offset_y);
+            unifiedModel.addVertex(newVertex);
+          }
+        }
+
+        // Add non-shared edges
+        for (Edge edge : model.getEdges()) {
+          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)  // We handle shared states separately
+            unifiedModel.addEdge(copyEdge(edge, prefix, unifiedModel));
+        }
       }
+    }
+
+    // Second stage model unification, spread out subgraphs
+    if (unify.verbose) System.out.println("2nd stage model unification - spreading out subgraphs");
+    {
+      double max_distance = 0;
+      for (Vertex vertex : unifiedModel.getVertices())
+        if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
+          double distance = Math.sqrt(Math.pow((double) vertex.getProperty("x"), 2) + Math.pow((double) vertex.getProperty("y"), 2));
+          if (distance > max_distance) max_distance = distance;
+        }
+
+      double coordinate_offset = max_distance * 1.1;  // Give a bit of padding
+
+      boolean coordinate_offset_vertical = false;
+
+      boolean first_context = true;
+
+      for (Context context : contexts) {
+        if (first_context) {  // Skip so the first context is central
+          first_context = false;
+          continue;
+        }
+
+        Model model = new Model(context.getModel());
+
+        // Update coordinates with the global offset
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() != null) continue;
+          String unifiedVertexName = getPrefixedString(vertex.getName(), context.getModel().getName() + "_");
+          Vertex unifiedVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+          if (unifiedVertex == null) {
+            continue;
+          }
+
+          if (unifiedVertex.getProperties().containsKey("x") && unifiedVertex.getProperties().containsKey("y")) {
+            if (coordinate_offset_vertical) {
+              unifiedVertex.setProperty("y", (double) unifiedVertex.getProperty("y") + coordinate_offset);
+            } else {
+              unifiedVertex.setProperty("x", (double) unifiedVertex.getProperty("x") + coordinate_offset);
+            }
+          }
+        }
+
+        // Alternate coordinate offset
+        if (coordinate_offset_vertical) {
+          if (coordinate_offset > 0) {
+            coordinate_offset = -coordinate_offset;
+          } else {
+            coordinate_offset *= -2;
+          }
+          coordinate_offset_vertical = false;
+        } else {
+          coordinate_offset_vertical = true;
+        }
+      }
+    }
+
+    // Third stage model unification, eliminate shared vertices & forward outgoing shared edges
+    if (unify.verbose) System.out.println("3rd stage model unification - eliminating shared vertices and forwarding original outgoing edges from shared vertices");
+    {
+
     }
 
     // Add to context
@@ -523,9 +611,9 @@ public class CLI {
     }
     if (vertex.getProperties() != null) {
       newVertex.setProperties(vertex.getProperties());
-      if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
-        newVertex.setProperty("x", Math.round((double) vertex.getProperty("x")));
-        newVertex.setProperty("y", Math.round((double) vertex.getProperty("y")));
+      if (newVertex.getProperties().containsKey("x") && newVertex.getProperties().containsKey("y")) {
+        newVertex.setProperty("x", (double) Math.round((double) newVertex.getProperty("x") / unify.rounding) * unify.rounding);
+        newVertex.setProperty("y", (double) Math.round((double) newVertex.getProperty("y") / unify.rounding) * unify.rounding);
       }
     }
     return newVertex;
