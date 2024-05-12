@@ -42,16 +42,14 @@ import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.MachineException;
 import org.graphwalker.core.machine.SimpleMachine;
-import org.graphwalker.core.model.Edge;
-import org.graphwalker.core.model.Element;
-import org.graphwalker.core.model.Requirement;
-import org.graphwalker.core.model.Vertex;
+import org.graphwalker.core.model.*;
 import org.graphwalker.dsl.antlr.DslException;
 import org.graphwalker.dsl.antlr.generator.GeneratorFactory;
 import org.graphwalker.io.common.ResourceUtils;
 import org.graphwalker.io.factory.ContextFactory;
 import org.graphwalker.io.factory.dot.DotContextFactory;
 import org.graphwalker.io.factory.java.JavaContextFactory;
+import org.graphwalker.io.factory.json.JsonContext;
 import org.graphwalker.io.factory.json.JsonContextFactory;
 import org.graphwalker.io.factory.yed.YEdContextFactory;
 import org.graphwalker.java.test.TestExecutor;
@@ -63,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
@@ -395,9 +394,6 @@ public class CLI {
     }
   }
 
-  private void runCommandUnify() throws Exception, UnsupportedFileFormat {
-  }
-
   private void runCommandOffline() throws Exception, UnsupportedFileFormat {
     if (offline.model.size() > 0) {
       List<Context> contexts = getContextsWithPathGenerators(offline.model.iterator());
@@ -434,6 +430,205 @@ public class CLI {
         System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited));
       }
     }
+  }
+
+  private void runCommandUnify() throws Exception, UnsupportedFileFormat {
+    String inputFileName = unify.input;
+    String outputFileName = unify.output;
+
+    // Sort out the output file name
+    if (outputFileName == null || outputFileName.isEmpty()) {
+      outputFileName = inputFileName.replaceFirst("\\..*$", "_unified." + unify.format.toLowerCase());
+    } else if (!outputFileName.toLowerCase().endsWith("." + unify.format.toLowerCase())) {
+      outputFileName = outputFileName + "." + unify.format.toLowerCase();
+    }
+
+    // Read the model
+    ContextFactory inputFactory = getContextFactory(inputFileName);
+    List<Context> contexts;
+    try {
+      contexts = inputFactory.create(Paths.get(inputFileName));
+      if (isNullOrEmpty(contexts)) {
+        logger.error("No valid models found in: " + inputFileName);
+        throw new RuntimeException("No valid models found in: '" + inputFileName + "'.");
+      }
+    } catch (DslException e) {
+      throw new Exception("The following syntax error occurred when parsing: '" + inputFileName + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
+    }
+
+    if (unify.verbose) System.out.println("Found " + contexts.size() + " models in " + inputFileName);
+
+    // Check if the model is strongly connected
+    if (unify.requireStronglyConnected) {
+      if (!checkStronglyConnected(contexts)) {
+        logger.error("The model is not strongly connected.");
+        throw new Exception("The model is not strongly connected.");
+      }
+    }
+
+    // Prep model objects
+    Model unifiedModel = new Model();
+    unifiedModel.setName(Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified");
+
+    // First stage model unification, copy all non-shared vertices & edges
+    if (unify.verbose) System.out.println("1st stage model unification - copying non-shared vertices");
+    for (Context context : contexts) {
+      if (unify.verbose) System.out.println("> " + context.getModel().getName());
+      String prefix = context.getModel().getName() + "_";
+      Model model = new Model(context.getModel());
+
+      // Add non-shared vertices
+      for (Vertex vertex : model.getVertices()) {
+        if (vertex.getSharedState() == null)  // We handle shared states separately
+          unifiedModel.addVertex(copyVertex(vertex, prefix));
+      }
+
+      // Add non-shared edges
+      for (Edge edge : model.getEdges()) {
+        if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)  // We handle shared states separately
+          unifiedModel.addEdge(copyEdge(edge, prefix, unifiedModel));
+      }
+    }
+
+    // Add to context
+    Context unifiedContext = new JsonContext();
+    unifiedContext.setModel(unifiedModel.build());
+
+    if (unify.verbose) System.out.println("Saving unified model to " + outputFileName);
+
+    ContextFactory outputFactory = getContextFactory(outputFileName);
+    String json = outputFactory.getAsString(new ArrayList<>(Collections.singletonList(unifiedContext)));
+
+    try (FileWriter fileWriter = new FileWriter(outputFileName)) {
+      fileWriter.write(json);
+    }
+  }
+
+  private Vertex copyVertex(Vertex vertex, String prefix) {
+    Vertex newVertex = new Vertex();
+    if (vertex.getName() != null) {
+      newVertex.setName(getPrefixedString(vertex.getName(), prefix));
+    }
+    if (vertex.getId() != null) {
+      newVertex.setId(getPrefixedString(vertex.getId(), prefix));
+    }
+    if (vertex.getSharedState() != null) {
+      newVertex.setSharedState(vertex.getSharedState());  // Shouldn't ever reach this for the Unify command, but left for completeness
+    }
+    if (vertex.getRequirements() != null) {
+      newVertex.setRequirements(vertex.getRequirements());
+    }
+    if (vertex.getActions() != null) {
+      newVertex.setActions(vertex.getActions());
+    }
+    if (vertex.getProperties() != null) {
+      newVertex.setProperties(vertex.getProperties());
+      if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
+        newVertex.setProperty("x", Math.round((double) vertex.getProperty("x")));
+        newVertex.setProperty("y", Math.round((double) vertex.getProperty("y")));
+      }
+    }
+    return newVertex;
+  }
+
+  private Edge copyEdge(Edge edge, String prefix, Model model) {
+    Edge newEdge = new Edge();
+    if (edge.getName() != null) {
+      newEdge.setName(getPrefixedString(edge.getName(), prefix));
+    }
+    if (edge.getId() != null) {
+      newEdge.setId(getPrefixedString(edge.getId(), prefix));
+    }
+    if (edge.getGuard() != null) {
+      newEdge.setGuard(edge.getGuard());
+    }
+    if (edge.getActions() != null) {
+      newEdge.setActions(edge.getActions());
+    }
+    if (edge.getRequirements() != null) {
+      newEdge.setRequirements(edge.getRequirements());
+    }
+
+    Vertex sourceVertex = null;
+    Vertex targetVertex = null;
+    for (Vertex vertex : model.getVertices()) {
+      if (vertex.getId().equals(getPrefixedString(edge.getSourceVertex().getId(), prefix))) {
+        sourceVertex = vertex;
+      }
+      if (vertex.getId().equals(getPrefixedString(edge.getTargetVertex().getId(), prefix))) {
+        targetVertex = vertex;
+      }
+    }
+    if (sourceVertex == null || targetVertex == null) {
+      throw new RuntimeException("Could not find source or target vertex for edge: " + edge.getId());
+    }
+    newEdge.setSourceVertex(sourceVertex);
+    newEdge.setTargetVertex(targetVertex);
+
+    return newEdge;
+  }
+
+  private String getPrefixedString(String string, String prefix) {
+    return prefix + string;
+  }
+
+  private boolean checkStronglyConnected(List<Context> contexts) throws Exception {
+    boolean[][] connected = new boolean[contexts.size()][contexts.size()];
+    for (int i = 0; i < contexts.size(); i++) {
+      for (int j = 0; j < contexts.size(); j++) {
+        connected[i][j] = false;
+      }
+      connected[i][i] = true;
+    }
+
+    for (int i = 0; i < contexts.size(); i++) {
+      for (int j = 0; j < contexts.size(); j++) {
+        if (i != j) {
+          if (connected[i][j]) {
+            continue;
+          }
+          for (Vertex.RuntimeVertex vertexI : contexts.get(i).getModel().getVertices()) {
+            for (Vertex.RuntimeVertex vertexJ : contexts.get(j).getModel().getVertices()) {
+              if (vertexI.hasSharedState() && vertexJ.hasSharedState() && vertexI.getSharedState().equals(vertexJ.getSharedState())) {
+                int iInEdges = contexts.get(i).getModel().getInEdges(vertexI).size();
+                int iOutEdges = contexts.get(i).getModel().getOutEdges(vertexI).size();
+                int jInEdges = contexts.get(j).getModel().getInEdges(vertexJ).size();
+                int jOutEdges = contexts.get(j).getModel().getOutEdges(vertexJ).size();
+
+                if (iInEdges > 0 && jOutEdges > 0) {
+                  connected[i][j] = true;
+                }
+                if (jInEdges > 0 && iOutEdges > 0) {
+                  connected[j][i] = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = 0; i < contexts.size(); i++) {
+      for (int j = 0; j < contexts.size(); j++) {
+        if (connected[i][j]) {
+          for (int k = 0; k < contexts.size(); k++) {
+            if (connected[j][k]) {
+              connected[i][k] = true;
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = 0; i < contexts.size(); i++) {
+      for (int j = 0; j < contexts.size(); j++) {
+        if (!connected[i][j]) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   public List<Context> getContextsWithPathGenerators(Iterator itr) throws Exception, UnsupportedFileFormat {
