@@ -33,7 +33,7 @@ public class DirectedChinesePostmanTest {
   public void testDirectedChinesePostman() {
     Model.RuntimeModel runtimeModel = model.build();
     Context context = new TestExecutionContext().setModel(runtimeModel);
-    DirectedChinesePostman directedChinesePostman = new DirectedChinesePostman(context, 0);
+    DirectedChinesePostman directedChinesePostman = new DirectedChinesePostman(context, v0.build());
 
     List<String> expected = Arrays.asList("b", "2", "e", "3", "f", "0", "a", "1", "c", "2", "e", "3", "f", "0", "a", "1", "d", "3", "f");
     List<String> actual = new ArrayList<>();

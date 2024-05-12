@@ -1,5 +1,7 @@
 package org.graphwalker.core.algorithm;
 
+import org.graphwalker.core.generator.NoPathFoundException;
+import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Element;
@@ -16,7 +18,6 @@ import java.util.List;
 public class DirectedChinesePostman implements Algorithm {
 
   private static final Class<FloydWarshall> FWAlgorithm = FloydWarshall.class;
-
   private final Context context;
   private final DCPState state;
   private final List<Edge.RuntimeEdge> dCPPath;
@@ -24,19 +25,26 @@ public class DirectedChinesePostman implements Algorithm {
   public DirectedChinesePostman(Context context) {
     this.context = context;
     this.state = new DCPState(context.getModel());
-    dCPPath = setUp(state.runtimeModel.getVertices().indexOf((RuntimeVertex) context.getCurrentElement()));
+    dCPPath = setUp((RuntimeVertex) context.getCurrentElement());
+//    this.printModel();
   }
 
-  public DirectedChinesePostman(Context context, int startVertex) {
+  public DirectedChinesePostman(Context context, RuntimeVertex startVertex) {
     this.context = context;
     this.state = new DCPState(context.getModel());
     dCPPath = setUp(startVertex);
+//    this.printModel();
   }
 
   public Element getNextElement() {
     if (context.getCurrentElement() instanceof Edge.RuntimeEdge) {
       return ((Edge.RuntimeEdge) context.getCurrentElement()).getTargetVertex();
     }
+
+    if (dCPPath.isEmpty()) {
+      return randomStep();  // TODO: This is a temporary(?) fix to prevent the algorithm from getting stuck when using multiple models
+    }
+
     return dCPPath.remove(0);
   }
 
@@ -44,7 +52,7 @@ public class DirectedChinesePostman implements Algorithm {
     return !dCPPath.isEmpty();
   }
 
-  public List<Edge.RuntimeEdge> setUp(int startVertex) {
+  public List<Edge.RuntimeEdge> setUp(RuntimeVertex startVertex) {
     FloydWarshall floydWarshall = getFloydWarshall();
 
     if (!isStronglyConnected(floydWarshall)) throw new AlgorithmException("The graph is not strongly connected.");
@@ -54,7 +62,9 @@ public class DirectedChinesePostman implements Algorithm {
     findInitialSolution();
 //    while (true) if (!improveSolution()) break; --> Never able to run due to cost always being 0
 
-    return createPath(startVertex);
+    int startVertexIndex = state.runtimeModel.getVertices().indexOf(startVertex);
+
+    return createPath(startVertexIndex);
   }
 
   private void leastCostPaths() {
@@ -236,6 +246,15 @@ public class DirectedChinesePostman implements Algorithm {
     return context.getAlgorithm(FWAlgorithm);
   }
 
+  private Element randomStep() {
+    Element currentElement = context.getCurrentElement();
+    List<Element> elements = context.filter(context.getModel().getElements(currentElement));
+    if (elements.isEmpty()) {
+      throw new NoPathFoundException(context.getCurrentElement());
+    }
+    return elements.get(SingletonRandomGenerator.nextInt(elements.size()));
+  }
+
   private boolean isStronglyConnected(FloydWarshall floydWarshall) {
     for (int i = 0; i < vertexCount(state.runtimeModel); i++)
       for (int j = 0; j < vertexCount(state.runtimeModel); j++)
@@ -266,6 +285,22 @@ public class DirectedChinesePostman implements Algorithm {
       for (int j = 0; j < vertexCount(state.runtimeModel); j++) {
         if (state.flow[i][j] > 0)
           System.out.println("Flow from " + state.runtimeModel.getVertices().get(i).getName() + " to " + state.runtimeModel.getVertices().get(j).getName() + " is " + state.flow[i][j]);
+      }
+    }
+  }
+
+  public void printModel() {
+    for (RuntimeVertex vertex : state.runtimeModel.getVertices()) {
+      String vertexPrint = "Vertex: " + vertex.getName();
+      if (vertex.hasSharedState()) {
+        vertexPrint += " (Shared state: " + vertex.getSharedState() + ")";
+      }
+      System.out.println(vertexPrint);
+      for (Edge.RuntimeEdge edge : state.runtimeModel.getOutEdges(vertex)) {
+        System.out.println("\t-(out)-> Edge: " + edge.getName());
+      }
+      for (Edge.RuntimeEdge edge : state.runtimeModel.getInEdges(vertex)) {
+        System.out.println("\t<-(in)- Edge: " + edge.getName());
       }
     }
   }
