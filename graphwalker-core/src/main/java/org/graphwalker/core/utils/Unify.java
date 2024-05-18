@@ -1,9 +1,12 @@
 package org.graphwalker.core.utils;
 
+import org.graphwalker.core.machine.Context;
+import org.graphwalker.core.machine.ExecutionContext;
 import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Model;
 import org.graphwalker.core.model.Vertex;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -130,6 +133,37 @@ public class Unify {
           sharedVertices.put(vertex.getSharedState(), newVertex);
           unifiedModel.addVertex(newVertex);
         }
+
+        for (Edge edge : model.getEdges()) {
+          // If the edge doesn't have either a shared source or target, we skip it, since we've already copied it
+          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)
+            continue;
+          Vertex sourceVertex = edge.getSourceVertex();
+          Vertex targetVertex = edge.getTargetVertex();
+          if (sourceVertex.getSharedState() != null) {
+            sourceVertex = sharedVertices.get(sourceVertex.getSharedState());
+          } else {
+            String unifiedVertexName = getPrefixedString(sourceVertex.getName(), modelToUnify.getName() + "_");
+            sourceVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+            if (sourceVertex == null) {
+              throw new RuntimeException("Could not find source vertex for edge: " + edge.getId());
+            }
+          }
+          if (targetVertex.getSharedState() != null) {
+            targetVertex = sharedVertices.get(targetVertex.getSharedState());
+          } else {
+            String unifiedVertexName = getPrefixedString(targetVertex.getName(), modelToUnify.getName() + "_");
+            targetVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+            if (targetVertex == null) {
+              throw new RuntimeException("Could not find target vertex for edge: " + edge.getId());
+            }
+          }
+
+          Edge newEdge = copyEdge(edge, modelToUnify.getName() + "_");
+          newEdge.setSourceVertex(sourceVertex);
+          newEdge.setTargetVertex(targetVertex);
+          unifiedModel.addEdge(newEdge);
+        }
       }
     }
 
@@ -165,6 +199,27 @@ public class Unify {
       }
     }
     return newVertex;
+  }
+
+  private static Edge copyEdge(Edge edge, String prefix) {
+    Edge newEdge = new Edge();
+    if (edge.getName() != null) {
+      newEdge.setName(getPrefixedString(edge.getName(), prefix));
+    }
+    if (edge.getId() != null) {
+      newEdge.setId(getPrefixedString(edge.getId(), prefix));
+    }
+    if (edge.getGuard() != null) {
+      newEdge.setGuard(edge.getGuard());
+    }
+    if (edge.getActions() != null) {
+      newEdge.setActions(edge.getActions());
+    }
+    if (edge.getRequirements() != null) {
+      newEdge.setRequirements(edge.getRequirements());
+    }
+
+    return newEdge;
   }
 
   private static Edge copyEdge(Edge edge, String prefix, Model model) {
@@ -206,5 +261,15 @@ public class Unify {
 
   private static String getPrefixedString(String string, String prefix) {
     return prefix + string;
+  }
+
+  public static Map<String, Method> GetUnifiedMethodMap(Class<ExecutionContext>... implementationsToUnify) {
+    Map<String, Method> unifiedMethodMap = new HashMap<>();
+    for (Class<ExecutionContext> implementationToUnify : implementationsToUnify) {
+      for (Method method : implementationToUnify.getDeclaredMethods()) {
+        unifiedMethodMap.put(method.getName(), method);
+      }
+    }
+    return unifiedMethodMap;
   }
 }
