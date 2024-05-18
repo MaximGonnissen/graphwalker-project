@@ -470,15 +470,161 @@ public class CLI {
       }
     }
 
-    Model.RuntimeModel[] models = new Model.RuntimeModel[contexts.size()];
-    for (int i = 0; i < contexts.size(); i++) {
-      models[i] = contexts.get(i).getModel();
+    // Prep model objects
+    Model unifiedModel = new Model();
+    unifiedModel.setName(Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified");
+
+    // First stage model unification, copy all non-shared vertices & edges
+    if (unify.verbose) System.out.println("1st stage model unification - copying non-shared vertices & edges");
+    {
+      for (Context context : contexts) {
+        String prefix = context.getModel().getName() + "_";
+        Model model = new Model(context.getModel());
+
+        // Find centre of local graph so we can centre the local graph in the unified model for later spreading
+        double local_offset_x = 0;
+        double local_offset_y = 0;
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() != null)
+            continue;  // We don't take into account shared states for the local offset, since these aren't copied
+          if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
+            local_offset_x += (double) vertex.getProperty("x");
+            local_offset_y += (double) vertex.getProperty("y");
+          }
+        }
+
+        local_offset_x /= model.getVertices().size();
+        local_offset_y /= model.getVertices().size();
+
+        // Add non-shared vertices
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() == null)  // We handle shared states separately
+          {
+            Vertex newVertex = copyVertex(vertex, prefix);
+            newVertex.setProperty("x", (double) newVertex.getProperty("x") - local_offset_x);
+            newVertex.setProperty("y", (double) newVertex.getProperty("y") - local_offset_y);
+            unifiedModel.addVertex(newVertex);
+          }
+        }
+
+        // Add non-shared edges
+        for (Edge edge : model.getEdges()) {
+          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)  // We handle shared states separately
+            unifiedModel.addEdge(copyEdge(edge, prefix, unifiedModel));
+        }
+      }
     }
 
-    Model unifiedModel = org.graphwalker.core.utils.Unify.CreateUnifiedModel(unify.rounding, models);
+    // Second stage model unification, spread out subgraphs
+    if (unify.verbose) System.out.println("2nd stage model unification - spreading out subgraphs");
+    {
+      double max_distance = 0;
+      for (Vertex vertex : unifiedModel.getVertices())
+        if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
+          double distance = Math.sqrt(Math.pow((double) vertex.getProperty("x"), 2) + Math.pow((double) vertex.getProperty("y"), 2));
+          if (distance > max_distance) max_distance = distance;
+        }
+
+      double coordinate_offset = max_distance * 1.1;  // Give a bit of padding
+
+      boolean coordinate_offset_vertical = false;
+
+      boolean first_context = true;
+
+      for (Context context : contexts) {
+        if (first_context) {  // Skip so the first context is central
+          first_context = false;
+          continue;
+        }
+
+        Model model = new Model(context.getModel());
+
+        // Update coordinates with the global offset
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() != null) continue;
+          String unifiedVertexName = getPrefixedString(vertex.getName(), context.getModel().getName() + "_");
+          Vertex unifiedVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+          if (unifiedVertex == null) {
+            continue;
+          }
+
+          if (unifiedVertex.getProperties().containsKey("x") && unifiedVertex.getProperties().containsKey("y")) {
+            if (coordinate_offset_vertical) {
+              unifiedVertex.setProperty("y", (double) unifiedVertex.getProperty("y") + coordinate_offset);
+            } else {
+              unifiedVertex.setProperty("x", (double) unifiedVertex.getProperty("x") + coordinate_offset);
+            }
+          }
+        }
+
+        // Alternate coordinate offset
+        if (coordinate_offset_vertical) {
+          if (coordinate_offset > 0) {
+            coordinate_offset = -coordinate_offset;
+          } else {
+            coordinate_offset *= -2;
+          }
+          coordinate_offset_vertical = false;
+        } else {
+          coordinate_offset_vertical = true;
+        }
+      }
+    }
+
+    // Third stage model unification, create and connect (previously-)shared states & edges
+    if (unify.verbose)
+      System.out.println("3rd stage model unification - creating and connecting (previously-)shared states & edges");
+    {
+      Map<String, Vertex> sharedVertices = new HashMap<>();
+
+      for (Context context : contexts) {
+        Model model = new Model(context.getModel());
+
+        // We create a single vertex for each shared state
+        for (Vertex vertex : model.getVertices()) {
+          if (vertex.getSharedState() == null) continue;
+          if (sharedVertices.containsKey(vertex.getSharedState())) continue;
+
+          Vertex newVertex = new Vertex();
+          newVertex.setName(vertex.getSharedState());
+          sharedVertices.put(vertex.getSharedState(), newVertex);
+          unifiedModel.addVertex(newVertex);
+        }
+
+        for (Edge edge : model.getEdges()) {
+          // If the edge doesn't have either a shared source or target, we skip it, since we've already copied it
+          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)
+            continue;
+          Vertex sourceVertex = edge.getSourceVertex();
+          Vertex targetVertex = edge.getTargetVertex();
+          if (sourceVertex.getSharedState() != null) {
+            sourceVertex = sharedVertices.get(sourceVertex.getSharedState());
+          } else {
+            String unifiedVertexName = getPrefixedString(sourceVertex.getName(), context.getModel().getName() + "_");
+            sourceVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+            if (sourceVertex == null) {
+              throw new RuntimeException("Could not find source vertex for edge: " + edge.getId());
+            }
+          }
+          if (targetVertex.getSharedState() != null) {
+            targetVertex = sharedVertices.get(targetVertex.getSharedState());
+          } else {
+            String unifiedVertexName = getPrefixedString(targetVertex.getName(), context.getModel().getName() + "_");
+            targetVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
+            if (targetVertex == null) {
+              throw new RuntimeException("Could not find target vertex for edge: " + edge.getId());
+            }
+          }
+
+          Edge newEdge = copyEdge(edge, context.getModel().getName() + "_");
+          newEdge.setSourceVertex(sourceVertex);
+          newEdge.setTargetVertex(targetVertex);
+          unifiedModel.addEdge(newEdge);
+        }
+      }
+    }
 
     // Add to context
-    unifiedModel.setName(Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified");
     Context unifiedContext = new JsonContext();
     unifiedContext.setModel(unifiedModel.build());
 
@@ -490,6 +636,80 @@ public class CLI {
     try (FileWriter fileWriter = new FileWriter(outputFileName)) {
       fileWriter.write(json);
     }
+  }
+
+  private Vertex copyVertex(Vertex vertex, String prefix) {
+    Vertex newVertex = new Vertex();
+    if (vertex.getName() != null) {
+      newVertex.setName(getPrefixedString(vertex.getName(), prefix));
+    }
+    if (vertex.getId() != null) {
+      newVertex.setId(getPrefixedString(vertex.getId(), prefix));
+    }
+    if (vertex.getSharedState() != null) {
+      newVertex.setSharedState(vertex.getSharedState());  // Shouldn't ever reach this for the Unify command, but left for completeness
+    }
+    if (vertex.getRequirements() != null) {
+      newVertex.setRequirements(vertex.getRequirements());
+    }
+    if (vertex.getActions() != null) {
+      newVertex.setActions(vertex.getActions());
+    }
+    if (vertex.getProperties() != null) {
+      newVertex.setProperties(vertex.getProperties());
+      if (newVertex.getProperties().containsKey("x") && newVertex.getProperties().containsKey("y")) {
+        newVertex.setProperty("x", (double) Math.round((double) newVertex.getProperty("x") / unify.rounding) * unify.rounding);
+        newVertex.setProperty("y", (double) Math.round((double) newVertex.getProperty("y") / unify.rounding) * unify.rounding);
+      }
+    }
+    return newVertex;
+  }
+
+  private Edge copyEdge(Edge edge, String prefix) {
+    Edge newEdge = new Edge();
+    if (edge.getName() != null) {
+      newEdge.setName(getPrefixedString(edge.getName(), prefix));
+    }
+    if (edge.getId() != null) {
+      newEdge.setId(getPrefixedString(edge.getId(), prefix));
+    }
+    if (edge.getGuard() != null) {
+      newEdge.setGuard(edge.getGuard());
+    }
+    if (edge.getActions() != null) {
+      newEdge.setActions(edge.getActions());
+    }
+    if (edge.getRequirements() != null) {
+      newEdge.setRequirements(edge.getRequirements());
+    }
+
+    return newEdge;
+  }
+
+  private Edge copyEdge(Edge edge, String prefix, Model model) {
+    Edge newEdge = copyEdge(edge, prefix);
+
+    Vertex sourceVertex = null;
+    Vertex targetVertex = null;
+    for (Vertex vertex : model.getVertices()) {
+      if (vertex.getId().equals(getPrefixedString(edge.getSourceVertex().getId(), prefix))) {
+        sourceVertex = vertex;
+      }
+      if (vertex.getId().equals(getPrefixedString(edge.getTargetVertex().getId(), prefix))) {
+        targetVertex = vertex;
+      }
+    }
+    if (sourceVertex == null || targetVertex == null) {
+      throw new RuntimeException("Could not find source or target vertex for edge: " + edge.getId());
+    }
+    newEdge.setSourceVertex(sourceVertex);
+    newEdge.setTargetVertex(targetVertex);
+
+    return newEdge;
+  }
+
+  private String getPrefixedString(String string, String prefix) {
+    return prefix + string;
   }
 
   private boolean checkStronglyConnected(List<Context> contexts) throws Exception {
