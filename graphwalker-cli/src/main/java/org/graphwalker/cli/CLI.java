@@ -42,7 +42,10 @@ import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.MachineException;
 import org.graphwalker.core.machine.SimpleMachine;
-import org.graphwalker.core.model.*;
+import org.graphwalker.core.model.Edge;
+import org.graphwalker.core.model.Element;
+import org.graphwalker.core.model.Requirement;
+import org.graphwalker.core.model.Vertex;
 import org.graphwalker.dsl.antlr.DslException;
 import org.graphwalker.dsl.antlr.generator.GeneratorFactory;
 import org.graphwalker.io.common.ResourceUtils;
@@ -472,12 +475,12 @@ public class CLI {
 
     String unifiedModelName = Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified";
 
-    Context[] contextToUnify = new Context[contexts.size()];
+    Context[] contextsToUnify = new Context[contexts.size()];
     for (int i = 0; i < contexts.size(); i++) {
-      contextToUnify[i] = contexts.get(i);
+      contextsToUnify[i] = contexts.get(i);
     }
 
-    Context unifiedContext = org.graphwalker.core.utils.Unify.CreateUnifiedContext((float) unify.rounding, unifiedModelName, new JsonContext(), contextToUnify);
+    Context unifiedContext = org.graphwalker.core.utils.Unify.CreateUnifiedContext((float) unify.rounding, unifiedModelName, new JsonContext(), contextsToUnify);
 
     if (unify.verbose) System.out.println("Saving unified model to " + outputFileName);
 
