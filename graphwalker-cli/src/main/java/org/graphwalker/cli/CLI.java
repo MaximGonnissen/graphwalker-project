@@ -485,6 +485,23 @@ public class CLI {
     Context unifiedContext = new JsonContext();
     unifiedContext.setModel(unifiedModel.build());
 
+    // Set the start element
+    String startElement = null;
+    for (Context context : contexts) {
+      if (context.getNextElement() != null) {
+        startElement = org.graphwalker.core.utils.Unify.getPrefixedString(context.getNextElement().getName(), context.getModel().getName() + "_");
+        break;
+      }
+    }
+    if (startElement != null) {
+      for (Vertex.RuntimeVertex vertex : unifiedContext.getModel().getVertices()) {
+        if (vertex.getName().equals(startElement)) {
+          unifiedContext.setNextElement(vertex);
+          break;
+        }
+      }
+    }
+
     if (unify.verbose) System.out.println("Saving unified model to " + outputFileName);
 
     ContextFactory outputFactory = getContextFactory(outputFileName);
