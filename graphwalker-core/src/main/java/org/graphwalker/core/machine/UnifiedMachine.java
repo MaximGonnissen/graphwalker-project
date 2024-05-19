@@ -203,12 +203,25 @@ public class UnifiedMachine extends MachineBase {
     }
   }
 
-  public void takeNextStep() {
+  private void takeNextStep() {
     if (isNotNull(unifiedContext.getNextElement())) {
       unifiedContext.setCurrentElement(unifiedContext.getNextElement());
     } else {
       unifiedContext.getPathGenerator().getNextStep();
     }
+    updateOriginalContextElement();
+  }
+
+  private void updateOriginalContextElement() {
+    Context originalContext = getOriginalContext(getCurrentContext().getCurrentElement());
+    if (isNull(originalContext)) {
+      return;
+    }
+    Element originalElement = getOriginalElement(getCurrentContext().getCurrentElement());
+    if (isNull(originalElement)) {
+      return;
+    }
+    originalContext.setCurrentElement(originalElement);
   }
 
   private void execute(Element element) {
