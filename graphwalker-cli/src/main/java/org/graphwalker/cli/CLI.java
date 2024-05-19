@@ -500,7 +500,9 @@ public class CLI {
           break;
         }
       }
+      if (unify.verbose) System.out.println("Start element set to: " + unifiedContext.getNextElement().getName());
     }
+
 
     if (unify.verbose) System.out.println("Saving unified model to " + outputFileName);
 
