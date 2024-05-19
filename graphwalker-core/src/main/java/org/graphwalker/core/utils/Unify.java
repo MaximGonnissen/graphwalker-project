@@ -223,22 +223,7 @@ public class Unify {
   }
 
   private static Edge copyEdge(Edge edge, String prefix, Model model) {
-    Edge newEdge = new Edge();
-    if (edge.getName() != null) {
-      newEdge.setName(getPrefixedString(edge.getName(), prefix));
-    }
-    if (edge.getId() != null) {
-      newEdge.setId(getPrefixedString(edge.getId(), prefix));
-    }
-    if (edge.getGuard() != null) {
-      newEdge.setGuard(edge.getGuard());
-    }
-    if (edge.getActions() != null) {
-      newEdge.setActions(edge.getActions());
-    }
-    if (edge.getRequirements() != null) {
-      newEdge.setRequirements(edge.getRequirements());
-    }
+    Edge newEdge = copyEdge(edge, prefix);
 
     Vertex sourceVertex = null;
     Vertex targetVertex = null;
