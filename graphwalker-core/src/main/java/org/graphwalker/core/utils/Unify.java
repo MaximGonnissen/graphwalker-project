@@ -46,7 +46,7 @@ public class Unify {
         for (Vertex vertex : model.getVertices()) {
           if (vertex.getSharedState() == null)  // We handle shared states separately
           {
-            Vertex newVertex = copyVertex(vertex, prefix);
+            Vertex newVertex = copyVertex(vertex, prefix, rounding);
             newVertex.setProperty("x", (double) newVertex.getProperty("x") - local_offset_x);
             newVertex.setProperty("y", (double) newVertex.getProperty("y") - local_offset_y);
             unifiedModel.addVertex(newVertex);
