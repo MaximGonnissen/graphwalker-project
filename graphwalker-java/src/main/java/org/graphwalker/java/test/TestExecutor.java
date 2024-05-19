@@ -60,9 +60,9 @@ import static org.graphwalker.core.model.Model.RuntimeModel;
 /**
  * @author Nils Olsson
  */
-public final class TestExecutor implements Executor, Observer {
+public class TestExecutor implements Executor, Observer {
 
-  private static final Logger logger = LoggerFactory.getLogger(TestExecutor.class);
+  protected static final Logger logger = LoggerFactory.getLogger(TestExecutor.class);
 
   private static Collection<URL> filter(Collection<URL> classPath, Collection<URL> classLoader) {
     List<URL> urls = new ArrayList<>(), filteredUrls = new ArrayList<>();
@@ -136,7 +136,7 @@ public final class TestExecutor implements Executor, Observer {
     return machineConfiguration;
   }
 
-  private Collection<Context> createContexts(MachineConfiguration machineConfiguration) throws IOException {
+  protected Collection<Context> createContexts(MachineConfiguration machineConfiguration) throws IOException {
     Set<Context> contexts = new HashSet<>();
     for (ContextConfiguration contextConfiguration : machineConfiguration.getContextConfigurations()) {
       Context context = createContext(contextConfiguration.getTestClass());
@@ -210,7 +210,7 @@ public final class TestExecutor implements Executor, Observer {
   }
 
 
-  private Machine createMachine(MachineConfiguration machineConfiguration) throws IOException {
+  protected Machine createMachine(MachineConfiguration machineConfiguration) throws IOException {
     Collection<Context> contexts = createContexts(machineConfiguration);
     Machine machine = new SimpleMachine(contexts);
     for (Context context : machine.getContexts()) {
