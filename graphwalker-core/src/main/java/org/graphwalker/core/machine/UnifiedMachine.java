@@ -171,8 +171,10 @@ public class UnifiedMachine extends MachineBase {
       if (getPrefixedName(vertex, originalContext).equals(element.getName())) {
         return vertex;
       }
-      if (vertex.getSharedState().equals(element.getName())) {
-        return vertex;
+      if (vertex.hasSharedState()) {
+        if (vertex.getSharedState().equals(element.getName())) {
+          return vertex;
+        }
       }
     }
     return null;
