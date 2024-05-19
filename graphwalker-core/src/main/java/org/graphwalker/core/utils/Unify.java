@@ -170,11 +170,11 @@ public class Unify {
     return unifiedModel;
   }
 
-  private static Vertex copyVertex(Vertex vertex, String prefix) {
+  public static Vertex copyVertex(Vertex vertex, String prefix) {
     return copyVertex(vertex, prefix, 1.0f);
   }
 
-  private static Vertex copyVertex(Vertex vertex, String prefix, float rounding) {
+  public static Vertex copyVertex(Vertex vertex, String prefix, float rounding) {
     Vertex newVertex = new Vertex();
     if (vertex.getName() != null) {
       newVertex.setName(getPrefixedString(vertex.getName(), prefix));
@@ -201,7 +201,7 @@ public class Unify {
     return newVertex;
   }
 
-  private static Edge copyEdge(Edge edge, String prefix) {
+  public static Edge copyEdge(Edge edge, String prefix) {
     Edge newEdge = new Edge();
     if (edge.getName() != null) {
       newEdge.setName(getPrefixedString(edge.getName(), prefix));
@@ -244,7 +244,7 @@ public class Unify {
     return newEdge;
   }
 
-  private static String getPrefixedString(String string, String prefix) {
+  public static String getPrefixedString(String string, String prefix) {
     return prefix + string;
   }
 
