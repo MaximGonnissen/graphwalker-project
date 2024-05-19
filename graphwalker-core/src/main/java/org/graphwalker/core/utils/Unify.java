@@ -170,6 +170,44 @@ public class Unify {
     return unifiedModel;
   }
 
+  public static Context CreateUnifiedContext(float rounding, Class<Context> contextClass, Context... contextsToUnify) {
+    Model.RuntimeModel[] modelsToUnify = new Model.RuntimeModel[contextsToUnify.length];
+    for (int i = 0; i < contextsToUnify.length; i++) {
+      modelsToUnify[i] = contextsToUnify[i].getModel();
+    }
+
+    Model unifiedModel = CreateUnifiedModel(rounding, modelsToUnify);
+
+    Context unifiedContext;
+    try {
+      unifiedContext = contextClass.newInstance();
+    } catch (Throwable e) {
+      throw new RuntimeException("Could not create context instance: " + e.getMessage());
+    }
+
+    unifiedContext.setModel(unifiedModel.build());
+
+    // Set the start element & copy pathGenerator from its context
+    String startElement = null;
+    for (Context context : contextsToUnify) {
+      if (context.getNextElement() != null) {
+        startElement = getPrefixedString(context.getNextElement().getName(), context.getModel().getName() + "_");
+        unifiedContext.setPathGenerator(context.getPathGenerator());
+        break;
+      }
+    }
+    if (startElement != null) {
+      for (Vertex.RuntimeVertex vertex : unifiedContext.getModel().getVertices()) {
+        if (vertex.getName().equals(startElement)) {
+          unifiedContext.setNextElement(vertex);
+          break;
+        }
+      }
+    }
+
+    return unifiedContext;
+  }
+
   public static Vertex copyVertex(Vertex vertex, String prefix) {
     return copyVertex(vertex, prefix, 1.0f);
   }
