@@ -170,13 +170,27 @@ public class Unify {
     return unifiedModel;
   }
 
+  public static Context CreateUnifiedContext(String unifiedModelName, Class<Context> contextClass, Context... contextsToUnify) {
+    return CreateUnifiedContext(1.0f, unifiedModelName, contextClass, contextsToUnify);
+  }
+
   public static Context CreateUnifiedContext(float rounding, Class<Context> contextClass, Context... contextsToUnify) {
+    return CreateUnifiedContext(rounding, "UnifiedModel", contextClass, contextsToUnify);
+  }
+
+  public static Context CreateUnifiedContext(Class<Context> contextClass, Context... contextsToUnify) {
+    return CreateUnifiedContext(1.0f, "UnifiedModel", contextClass, contextsToUnify);
+  }
+
+  public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Class<Context> contextClass, Context... contextsToUnify) {
     Model.RuntimeModel[] modelsToUnify = new Model.RuntimeModel[contextsToUnify.length];
     for (int i = 0; i < contextsToUnify.length; i++) {
       modelsToUnify[i] = contextsToUnify[i].getModel();
     }
 
     Model unifiedModel = CreateUnifiedModel(rounding, modelsToUnify);
+
+    unifiedModel.setName(unifiedModelName);
 
     Context unifiedContext;
     try {
