@@ -470,39 +470,14 @@ public class CLI {
       }
     }
 
-    Model.RuntimeModel[] models = new Model.RuntimeModel[contexts.size()];
+    String unifiedModelName = Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified";
+
+    Context[] contextToUnify = new Context[contexts.size()];
     for (int i = 0; i < contexts.size(); i++) {
-      models[i] = contexts.get(i).getModel();
+      contextToUnify[i] = contexts.get(i);
     }
 
-    // Prep model objects
-    Model unifiedModel = org.graphwalker.core.utils.Unify.CreateUnifiedModel(unify.rounding, models);
-
-    // Set the name of the unified model
-    unifiedModel.setName(Paths.get(inputFileName).getFileName().toString().replaceFirst("\\..*$", "") + "_unified");
-
-    // Add to context
-    Context unifiedContext = new JsonContext();
-    unifiedContext.setModel(unifiedModel.build());
-
-    // Set the start element
-    String startElement = null;
-    for (Context context : contexts) {
-      if (context.getNextElement() != null) {
-        startElement = org.graphwalker.core.utils.Unify.getPrefixedString(context.getNextElement().getName(), context.getModel().getName() + "_");
-        break;
-      }
-    }
-    if (startElement != null) {
-      for (Vertex.RuntimeVertex vertex : unifiedContext.getModel().getVertices()) {
-        if (vertex.getName().equals(startElement)) {
-          unifiedContext.setNextElement(vertex);
-          break;
-        }
-      }
-      if (unify.verbose) System.out.println("Start element set to: " + unifiedContext.getNextElement().getName());
-    }
-
+    Context unifiedContext = org.graphwalker.core.utils.Unify.CreateUnifiedContext((float) unify.rounding, unifiedModelName, new JsonContext(), contextToUnify);
 
     if (unify.verbose) System.out.println("Saving unified model to " + outputFileName);
 
