@@ -76,10 +76,10 @@ public class UnifiedMachine extends MachineBase {
     execute(getCurrentContext().getCurrentElement());
     getProfiler().stop(getCurrentContext());
     if (getCurrentContext().getLastElement() instanceof Edge.RuntimeEdge) {
-      updateRequirements(getCurrentContext(), getCurrentContext().getLastElement());
+      updateRequirements(getCurrentContext().getLastElement());
     }
     if (getCurrentContext().getCurrentElement() instanceof Vertex.RuntimeVertex) {
-      updateRequirements(getCurrentContext(), getCurrentContext().getCurrentElement());
+      updateRequirements(getCurrentContext().getCurrentElement());
     }
 
     notifyOriginalObservers(getCurrentContext().getCurrentElement(), EventType.AFTER_ELEMENT);
@@ -247,13 +247,31 @@ public class UnifiedMachine extends MachineBase {
     boolean hasMoreSteps = unifiedContext.getPathGenerator().hasNextStep();
     if (!hasMoreSteps) {
       unifiedContext.setExecutionStatus(ExecutionStatus.COMPLETED);
-      updateRequirements(unifiedContext, unifiedContext.getModel());
+      updateRequirements(unifiedContext.getModel());
     }
     return hasMoreSteps;
   }
 
   private boolean isVertex(Element element) {
     return element instanceof Vertex.RuntimeVertex;
+  }
+
+  private void updateRequirements(Element element) {
+    if (element.hasRequirements()) {
+      for (Requirement requirement : element.getRequirements()) {
+        unifiedContext.setRequirementStatus(requirement, RequirementStatus.PASSED);
+      }
+    }
+
+    Context originalContext = getOriginalContext(element);
+    if (isNull(originalContext)) {
+      return;
+    }
+    Element originalElement = getOriginalElement(element);
+    if (isNull(originalElement)) {
+      return;
+    }
+    updateRequirements(originalContext, originalElement);
   }
 
   private void updateRequirements(Context context, Element element) {
