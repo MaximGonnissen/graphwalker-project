@@ -170,19 +170,19 @@ public class Unify {
     return unifiedModel;
   }
 
-  public static Context CreateUnifiedContext(String unifiedModelName, Class<Context> contextClass, Context... contextsToUnify) {
-    return CreateUnifiedContext(1.0f, unifiedModelName, contextClass, contextsToUnify);
+  public static Context CreateUnifiedContext(String unifiedModelName, Context unifiedContext, Context... contextsToUnify) {
+    return CreateUnifiedContext(1.0f, unifiedModelName, unifiedContext, contextsToUnify);
   }
 
-  public static Context CreateUnifiedContext(float rounding, Class<Context> contextClass, Context... contextsToUnify) {
-    return CreateUnifiedContext(rounding, "UnifiedModel", contextClass, contextsToUnify);
+  public static Context CreateUnifiedContext(float rounding, Context unifiedContext, Context... contextsToUnify) {
+    return CreateUnifiedContext(rounding, "UnifiedModel", unifiedContext, contextsToUnify);
   }
 
-  public static Context CreateUnifiedContext(Class<Context> contextClass, Context... contextsToUnify) {
-    return CreateUnifiedContext(1.0f, "UnifiedModel", contextClass, contextsToUnify);
+  public static Context CreateUnifiedContext(Context unifiedContext, Context... contextsToUnify) {
+    return CreateUnifiedContext(1.0f, "UnifiedModel", unifiedContext, contextsToUnify);
   }
 
-  public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Class<Context> contextClass, Context... contextsToUnify) {
+  public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Context unifiedContext, Context... contextsToUnify) {
     Model.RuntimeModel[] modelsToUnify = new Model.RuntimeModel[contextsToUnify.length];
     for (int i = 0; i < contextsToUnify.length; i++) {
       modelsToUnify[i] = contextsToUnify[i].getModel();
@@ -191,13 +191,6 @@ public class Unify {
     Model unifiedModel = CreateUnifiedModel(rounding, modelsToUnify);
 
     unifiedModel.setName(unifiedModelName);
-
-    Context unifiedContext;
-    try {
-      unifiedContext = contextClass.newInstance();
-    } catch (Throwable e) {
-      throw new RuntimeException("Could not create context instance: " + e.getMessage());
-    }
 
     unifiedContext.setModel(unifiedModel.build());
 
