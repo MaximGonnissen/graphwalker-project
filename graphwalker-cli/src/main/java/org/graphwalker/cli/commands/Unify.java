@@ -4,6 +4,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import org.graphwalker.io.factory.ContextFactoryScanner;
 
+/**
+ * @author Maxim Gonnissen
+ */
 @Parameters(commandDescription = "Will unify a multi-model file into a single model, if possible.")
 public class Unify {
 
