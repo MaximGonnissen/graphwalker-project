@@ -1,6 +1,7 @@
 package org.graphwalker.core.machine;
 
 import org.graphwalker.core.event.EventType;
+import org.graphwalker.core.generator.UnifiedDummyPathGenerator;
 import org.graphwalker.core.model.*;
 import org.graphwalker.core.utils.Unify;
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ public class UnifiedMachine extends MachineBase {
     for (Context context : originalContexts) {
       context.setGlobalExecutionEnvironment(globalExecutionEnvironment);
       context.setProfiler(getProfiler());
+      context.setPathGenerator(new UnifiedDummyPathGenerator(unifiedContext.getPathGenerator()));
       if (isNull(context.getModel())) {
         throw new MachineException("A context must be associated with a model");
       }
