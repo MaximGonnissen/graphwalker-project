@@ -29,8 +29,12 @@ public class UnifiedMachine extends MachineBase {
   private org.graalvm.polyglot.Context globalExecutionEnvironment;
 
   public UnifiedMachine(Context unifiedContext, Context... originalContexts) {
+    this(unifiedContext, Arrays.asList(originalContexts));
+  }
+
+  public UnifiedMachine(Context unifiedContext, Collection<Context> originalContexts) {
     this.unifiedContext = unifiedContext;
-    this.originalContexts = Arrays.asList(originalContexts);
+    this.originalContexts = new ArrayList<>(originalContexts);
     executeInitActions();
     setCurrentContext(this.unifiedContext);
   }
