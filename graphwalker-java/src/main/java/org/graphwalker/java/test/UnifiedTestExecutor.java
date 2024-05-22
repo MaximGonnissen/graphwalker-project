@@ -3,6 +3,7 @@ package org.graphwalker.java.test;
 import org.graphwalker.core.event.Observer;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.Machine;
+import org.graphwalker.core.machine.SimpleMachine;
 import org.graphwalker.core.machine.UnifiedMachine;
 import org.graphwalker.io.factory.java.JavaContext;
 
@@ -26,6 +27,33 @@ public final class UnifiedTestExecutor extends TestExecutor {
     super(tests);
   }
 
+  public UnifiedTestExecutor(Context... contexts) {
+    super(contexts);
+  }
+
+  public UnifiedTestExecutor(Collection<Context> contexts) {
+    super(contexts);
+  }
+
+  @Override
+  protected Machine createMachine(Collection<Context> contexts) {
+    Context[] contextsArray = new Context[contexts.size()];
+    int i = 0;
+    for (Context context : contexts) {
+      contextsArray[i++] = context;
+    }
+
+    Context unifiedContext = CreateUnifiedContext(new JavaContext(), contextsArray);
+
+    Machine machine = new UnifiedMachine(unifiedContext, contextsArray);
+    for (Context context : machine.getContexts()) {
+      if (context instanceof Observer) {
+        machine.addObserver((Observer) context);
+      }
+    }
+    return machine;
+  }
+
   /**
    * Alternative createMachine which unifies things before creating the machine.
    *
@@ -35,22 +63,6 @@ public final class UnifiedTestExecutor extends TestExecutor {
   @Override
   protected Machine createMachine(MachineConfiguration machineConfiguration) throws IOException {
     Collection<Context> originalContexts = createContexts(machineConfiguration);
-
-
-    Context[] originalContextsArray = new Context[originalContexts.size()];
-    int i = 0;
-    for (Context context : originalContexts) {
-      originalContextsArray[i++] = context;
-    }
-
-    Context unifiedContext = CreateUnifiedContext(new JavaContext(), originalContextsArray);
-
-    Machine machine = new UnifiedMachine(unifiedContext, originalContextsArray);
-    for (Context context : machine.getContexts()) {
-      if (context instanceof Observer) {
-        machine.addObserver((Observer) context);
-      }
-    }
-    return machine;
+    return createMachine(originalContexts);
   }
 }
