@@ -12,10 +12,10 @@ package org.graphwalker.java.test;
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -63,6 +63,36 @@ import static org.graphwalker.core.model.Model.RuntimeModel;
 public class TestExecutor implements Executor, Observer {
 
   protected static final Logger logger = LoggerFactory.getLogger(TestExecutor.class);
+  private final Configuration configuration;
+  private final MachineConfiguration machineConfiguration;
+  private final Map<Context, MachineException> failures = new HashMap<>();
+  private final Machine machine;
+  private Result result;
+  public TestExecutor(Configuration configuration) throws IOException {
+    this.configuration = configuration;
+    this.machineConfiguration = createMachineConfiguration(AnnotationUtils.findTests());
+    this.machine = createMachine(machineConfiguration);
+    this.machine.addObserver(this);
+  }
+  public TestExecutor(Class<?>... tests) throws IOException {
+    this.configuration = new Configuration();
+    this.machineConfiguration = createMachineConfiguration(Arrays.asList(tests));
+    this.machine = createMachine(machineConfiguration);
+    this.machine.addObserver(this);
+  }
+  public TestExecutor(Context... contexts) {
+    this.configuration = new Configuration();
+    this.machineConfiguration = new MachineConfiguration();
+    this.machine = createMachine(Arrays.asList(contexts));
+    this.machine.addObserver(this);
+  }
+
+  public TestExecutor(Collection<Context> contexts) {
+    this.configuration = new Configuration();
+    this.machineConfiguration = new MachineConfiguration();
+    this.machine = createMachine(contexts);
+    this.machine.addObserver(this);
+  }
 
   private static Collection<URL> filter(Collection<URL> classPath, Collection<URL> classLoader) {
     List<URL> urls = new ArrayList<>(), filteredUrls = new ArrayList<>();
@@ -84,38 +114,8 @@ public class TestExecutor implements Executor, Observer {
     }
   }
 
-  private final Configuration configuration;
-  private final MachineConfiguration machineConfiguration;
-  private final Map<Context, MachineException> failures = new HashMap<>();
-  private final Machine machine;
-  private Result result;
-
-  public TestExecutor(Configuration configuration) throws IOException {
-    this.configuration = configuration;
-    this.machineConfiguration = createMachineConfiguration(AnnotationUtils.findTests());
-    this.machine = createMachine(machineConfiguration);
-    this.machine.addObserver(this);
-  }
-
-  public TestExecutor(Class<?>... tests) throws IOException {
-    this.configuration = new Configuration();
-    this.machineConfiguration = createMachineConfiguration(Arrays.asList(tests));
-    this.machine = createMachine(machineConfiguration);
-    this.machine.addObserver(this);
-  }
-
-  public TestExecutor(Context... contexts) {
-    this.configuration = new Configuration();
-    this.machineConfiguration = new MachineConfiguration();
-    this.machine = new SimpleMachine(contexts);
-    this.machine.addObserver(this);
-  }
-
-  public TestExecutor(Collection<Context> contexts) {
-    this.configuration = new Configuration();
-    this.machineConfiguration = new MachineConfiguration();
-    this.machine = new SimpleMachine(contexts);
-    this.machine.addObserver(this);
+  protected Machine createMachine(Collection<Context> contexts) {
+    return new SimpleMachine(contexts);
   }
 
   @Override
@@ -162,7 +162,7 @@ public class TestExecutor implements Executor, Observer {
       List<Context> contexts = ContextFactoryScanner.get(path).create(path);
 
       if (isNullOrEmpty(contexts)) {
-        throw new TestExecutionException("Could not read the model: " + path.toString());
+        throw new TestExecutionException("Could not read the model: " + path);
       } else if (contexts.size() == 1) {
         context.setModel(contexts.get(0).getModel());
         context.setNextElement(contexts.get(0).getNextElement());
@@ -212,7 +212,7 @@ public class TestExecutor implements Executor, Observer {
 
   protected Machine createMachine(MachineConfiguration machineConfiguration) throws IOException {
     Collection<Context> contexts = createContexts(machineConfiguration);
-    Machine machine = new SimpleMachine(contexts);
+    Machine machine = createMachine(contexts);
     for (Context context : machine.getContexts()) {
       if (context instanceof Observer) {
         machine.addObserver((Observer) context);
@@ -325,8 +325,7 @@ public class TestExecutor implements Executor, Observer {
   public void reportResults(File file, Date startTime, Properties properties) {
     new XMLReportGenerator(startTime, properties).writeReport(file, this);
     if (!getFailures().isEmpty()) {
-      throw new TestExecutionException(
-        MessageFormat.format("There are test failures.\n\n Please refer to {0} for the individual test results.", file.getAbsolutePath()));
+      throw new TestExecutionException(MessageFormat.format("There are test failures.\n\n Please refer to {0} for the individual test results.", file.getAbsolutePath()));
     }
   }
 
