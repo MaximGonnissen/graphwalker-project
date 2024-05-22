@@ -38,6 +38,7 @@ import org.graphwalker.cli.commands.*;
 import org.graphwalker.cli.util.LoggerUtil;
 import org.graphwalker.cli.util.UnsupportedFileFormat;
 import org.graphwalker.core.event.EventType;
+import org.graphwalker.core.generator.PathGenerator;
 import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.*;
 import org.graphwalker.core.model.Edge;
@@ -399,7 +400,9 @@ public class CLI {
 
   private void runCommandOffline() throws Exception, UnsupportedFileFormat {
     if (offline.model.size() > 0) {
+
       List<Context> contexts = getContextsWithPathGenerators(offline.model.iterator());
+      PathGenerator<?> generator = contexts.get(0).getPathGenerator();
       if (offline.blocked) {
         org.graphwalker.io.common.Util.filterBlockedElements(contexts);
       }
@@ -407,6 +410,7 @@ public class CLI {
       TestExecutor executor;
       if (offline.unified) {
         executor = new UnifiedTestExecutor(contexts);
+        executor.getMachine().getCurrentContext().setPathGenerator(generator);
       } else {
         executor = new TestExecutor(contexts);
       }
