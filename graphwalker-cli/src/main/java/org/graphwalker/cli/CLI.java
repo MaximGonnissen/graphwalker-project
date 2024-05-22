@@ -39,9 +39,7 @@ import org.graphwalker.cli.util.LoggerUtil;
 import org.graphwalker.cli.util.UnsupportedFileFormat;
 import org.graphwalker.core.event.EventType;
 import org.graphwalker.core.generator.SingletonRandomGenerator;
-import org.graphwalker.core.machine.Context;
-import org.graphwalker.core.machine.MachineException;
-import org.graphwalker.core.machine.SimpleMachine;
+import org.graphwalker.core.machine.*;
 import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Element;
 import org.graphwalker.core.model.Requirement;
@@ -51,11 +49,13 @@ import org.graphwalker.dsl.antlr.generator.GeneratorFactory;
 import org.graphwalker.io.common.ResourceUtils;
 import org.graphwalker.io.factory.ContextFactory;
 import org.graphwalker.io.factory.dot.DotContextFactory;
+import org.graphwalker.io.factory.java.JavaContext;
 import org.graphwalker.io.factory.java.JavaContextFactory;
 import org.graphwalker.io.factory.json.JsonContext;
 import org.graphwalker.io.factory.json.JsonContextFactory;
 import org.graphwalker.io.factory.yed.YEdContextFactory;
 import org.graphwalker.java.test.TestExecutor;
+import org.graphwalker.java.test.UnifiedTestExecutor;
 import org.graphwalker.modelchecker.ContextsChecker;
 import org.graphwalker.restful.Restful;
 import org.graphwalker.restful.Util;
@@ -404,7 +404,13 @@ public class CLI {
         org.graphwalker.io.common.Util.filterBlockedElements(contexts);
       }
 
-      TestExecutor executor = new TestExecutor(contexts);
+      TestExecutor executor;
+      if (offline.unified) {
+        executor = new UnifiedTestExecutor(contexts);
+      } else {
+        executor = new TestExecutor(contexts);
+      }
+
       executor.getMachine().addObserver((machine, element, type) -> {
         if (EventType.BEFORE_ELEMENT.equals(type)) {
           System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited));
@@ -427,7 +433,13 @@ public class CLI {
         org.graphwalker.io.common.Util.filterBlockedElements(contexts);
       }
 
-      SimpleMachine machine = new SimpleMachine(contexts);
+      Machine machine;
+      if (offline.unified) {
+        Context unifiedContext = org.graphwalker.core.utils.Unify.CreateUnifiedContext(new JavaContext(), contexts.toArray(new Context[0]));
+        machine = new UnifiedMachine(unifiedContext, contexts);
+      } else {
+        machine = new SimpleMachine(contexts);
+      }
       while (machine.hasNextStep()) {
         machine.getNextStep();
         System.out.println(Util.getStepAsJSON(machine, offline.verbose, offline.unvisited));

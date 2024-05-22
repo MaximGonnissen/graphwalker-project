@@ -63,6 +63,10 @@ public class Offline {
                   "When \"-b false\" GraphWalker will not filter out elements with the keyword BLOCKED.")
   public boolean blocked = true;
 
+  @Parameter(names = {"--unified"}, required = false,
+    description = "Use the Unified Path Generator.")
+  public boolean unified = false;
+
   @Parameter(names = {"--seed", "-d"}, required = false,
     description = "Seed the random generator using the provided number. Using a seeded number, will generate the same path every time.")
   public long seed = 0;
