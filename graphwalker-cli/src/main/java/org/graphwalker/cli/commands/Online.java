@@ -68,4 +68,8 @@ public class Online {
                   "When \"-b true\" GraphWalker will filter out any elements with the keyword BLOCKED. " +
                   "When \"-b false\" GraphWalker will not filter out elements with the keyword BLOCKED.")
   public boolean blocked = true;
+
+  @Parameter(names = {"--unified"}, required = false,
+    description = "Use the Unified Path Generator.")
+  public boolean unified = false;
 }

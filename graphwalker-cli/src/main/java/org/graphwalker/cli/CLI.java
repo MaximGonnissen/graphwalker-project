@@ -286,6 +286,11 @@ public class CLI {
       ResourceConfig rc = new DefaultResourceConfig();
       try {
         List<Context> contexts = getContextsWithPathGenerators(online.model.iterator());
+        if (offline.unified) {
+          Context unifiedContext = org.graphwalker.core.utils.Unify.CreateUnifiedContext(new JavaContext(), contexts.toArray(new Context[0]));
+          unifiedContext.setPathGenerator(contexts.get(0).getPathGenerator());
+          contexts = new ArrayList<>(Collections.singletonList(unifiedContext));
+        }
 
         rc.getSingletons().add(new Restful(contexts, online.verbose, online.unvisited, online.blocked));
       } catch (MachineException e) {
@@ -402,7 +407,6 @@ public class CLI {
     if (offline.model.size() > 0) {
 
       List<Context> contexts = getContextsWithPathGenerators(offline.model.iterator());
-      PathGenerator<?> generator = contexts.get(0).getPathGenerator();
       if (offline.blocked) {
         org.graphwalker.io.common.Util.filterBlockedElements(contexts);
       }
@@ -410,7 +414,7 @@ public class CLI {
       TestExecutor executor;
       if (offline.unified) {
         executor = new UnifiedTestExecutor(contexts);
-        executor.getMachine().getCurrentContext().setPathGenerator(generator);
+        executor.getMachine().getCurrentContext().setPathGenerator(contexts.get(0).getPathGenerator());
       } else {
         executor = new TestExecutor(contexts);
       }
