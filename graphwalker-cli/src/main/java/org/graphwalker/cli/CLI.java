@@ -29,14 +29,22 @@ package org.graphwalker.cli;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.ParameterException;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
 import com.sun.jersey.api.core.DefaultResourceConfig;
 import com.sun.jersey.api.core.ResourceConfig;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.graphwalker.cli.commands.*;
+import org.graphwalker.cli.util.BenchmarkResult;
 import org.graphwalker.cli.util.LoggerUtil;
 import org.graphwalker.cli.util.UnsupportedFileFormat;
+import org.graphwalker.core.condition.AlternativeCondition;
+import org.graphwalker.core.condition.CombinedCondition;
+import org.graphwalker.core.condition.StopCondition;
+import org.graphwalker.core.condition.TimeDuration;
 import org.graphwalker.core.event.EventType;
 import org.graphwalker.core.generator.PathGenerator;
 import org.graphwalker.core.generator.SingletonRandomGenerator;
@@ -64,12 +72,11 @@ import org.graphwalker.websocket.WebSocketServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -88,6 +95,7 @@ public class CLI {
   private Source source;
   private Check check;
   private Unify unify;
+  private Benchmark benchmark;
   private Command command = Command.NONE;
 
   public static void main(String[] args) {
@@ -135,6 +143,9 @@ public class CLI {
     unify = new Unify();
     jc.addCommand("unify", unify);
 
+    benchmark = new Benchmark();
+    jc.addCommand("benchmark", benchmark);
+
     try {
       jc.parse(args);
       setLogLevel(options);
@@ -174,6 +185,9 @@ public class CLI {
       } else if (jc.getParsedCommand().equalsIgnoreCase("unify")) {
         command = Command.UNIFY;
         runCommandUnify();
+      } else if (jc.getParsedCommand().equalsIgnoreCase("benchmark")) {
+        command = Command.BENCHMARK;
+        runCommandBenchmark();
       }
     } catch (UnsupportedFileFormat | MissingCommandException e) {
       System.err.println(e.getMessage() + System.lineSeparator());
@@ -512,6 +526,126 @@ public class CLI {
     }
   }
 
+  private void runCommandBenchmark() throws Exception, UnsupportedFileFormat {
+    ContextFactory inputFactory = getContextFactory(benchmark.model);
+
+    List<BenchmarkResult> benchmarkResults = new ArrayList<>();
+
+    Random seedGenerator = new Random(benchmark.seed);
+
+    for (PathGenerator<StopCondition> pathGenerator : GetBenchmarkPathGenerators(benchmark.generators)) {
+      if (benchmark.verbose)
+        System.out.println("Running  benchmark(s) with path generator: " + pathGenerator.toString() + " and stop condition: " + pathGenerator.getStopCondition());
+      for (int i = 0; i < benchmark.runs; i++) {
+        try {
+          List<Context> contexts = inputFactory.create(Paths.get(benchmark.model));
+          benchmarkResults.add(GetBenchmarkedRun(i, pathGenerator.toString(), contexts, pathGenerator, seedGenerator.nextInt()));
+          if (benchmark.verbose)
+            System.out.println("Run " + (i + 1) + " of " + benchmark.runs + " completed: " + benchmarkResults.get(benchmarkResults.size() - 1).testSuiteSize + " elements visited in " + benchmarkResults.get(benchmarkResults.size() - 1).generationTime + " μs.");
+        } catch (DslException e) {
+          throw new Exception("The following syntax error occurred when parsing: '" + benchmark.model + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
+        }
+      }
+    }
+
+    if (!benchmark.output.isEmpty()) {
+      // Get output folder
+      Path outputFolder = Paths.get(benchmark.output).getParent();
+
+      GsonBuilder gsonBuilder = new GsonBuilder();
+      Gson gson = gsonBuilder.setPrettyPrinting().create();
+
+      JsonObject reportJson = new JsonObject();
+      reportJson.addProperty("BaseSeed", benchmark.seed);
+      reportJson.addProperty("Runs", benchmark.runs);
+      reportJson.addProperty("Generators", benchmark.generators);
+      reportJson.addProperty("Model", benchmark.model);
+      reportJson.addProperty("Unified", benchmark.unified);
+      reportJson.addProperty("Verbose", benchmark.verbose);
+
+      Map<String, List<BenchmarkResult>> groups = new HashMap<>();
+      for (BenchmarkResult result : benchmarkResults) {
+        if (!groups.containsKey(result.group)) {
+          groups.put(result.group, new ArrayList<>());
+        }
+        groups.get(result.group).add(result);
+      }
+
+      for (String group : groups.keySet()) {
+        JsonObject groupJson = new JsonObject();
+        Path groupOutput = outputFolder.resolve("runs").resolve(group);
+        if (!groupOutput.toFile().exists()) {
+          groupOutput.toFile().mkdirs();
+        }
+
+        long totalGenerationTime = 0;
+        long totalTestSuiteSize = 0;
+        for (BenchmarkResult result : groups.get(group)) {
+          Path runOutput = groupOutput.resolve("run_" + result.identifier + ".json");
+          try (FileWriter fileWriter = new FileWriter(runOutput.toFile())) {
+            fileWriter.write(result.path);
+          }
+          totalGenerationTime += result.generationTime;
+          totalTestSuiteSize += result.testSuiteSize;
+        }
+        groupJson.addProperty("TotalGenerationTime", totalGenerationTime);
+        groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
+        groupJson.addProperty("AverageGenerationTime", totalGenerationTime / groups.get(group).size());
+        groupJson.addProperty("AverageTestSuiteSize", totalTestSuiteSize / groups.get(group).size());
+        reportJson.add(group, groupJson);
+      }
+
+      try (FileWriter fileWriter = new FileWriter(benchmark.output)) {
+        fileWriter.write(gson.toJson(reportJson));
+      }
+    }
+  }
+
+  private List<PathGenerator<StopCondition>> GetBenchmarkPathGenerators(String generatorFile) {
+    List<PathGenerator<StopCondition>> pathGenerators = new ArrayList<>();
+    try (BufferedReader reader = new BufferedReader(new FileReader(generatorFile))) {
+      while (reader.ready()) {
+        pathGenerators.add(GeneratorFactory.parse(reader.readLine()));
+      }
+    } catch (IOException e) {
+      logger.error("Could not read the file: '{}'.", generatorFile);
+      throw new RuntimeException("Could not read the file: '" + generatorFile + "'.");
+    } catch (DslException e) {
+      logger.error("The following syntax error occurred when parsing: '{}'.{}Syntax Error: {}", generatorFile, System.lineSeparator(), e.getMessage());
+      throw new RuntimeException("The following syntax error occurred when parsing: '" + generatorFile + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
+    }
+    return pathGenerators;
+  }
+
+  private BenchmarkResult GetBenchmarkedRun(int identifier, String group, List<Context> contexts, PathGenerator<StopCondition> pathGenerator, long seed) throws Exception {
+    TestExecutor executor;
+    if (benchmark.unified) {
+      executor = new UnifiedTestExecutor(contexts);
+    } else {
+      executor = new TestExecutor(contexts);
+    }
+
+    AlternativeCondition newCondition = new AlternativeCondition();
+    newCondition.addStopCondition(pathGenerator.getStopCondition());
+    newCondition.addStopCondition(new TimeDuration(benchmark.killAfter, TimeUnit.SECONDS));
+    pathGenerator.setStopCondition(newCondition);
+
+    executor.getMachine().getCurrentContext().setPathGenerator(pathGenerator);
+
+    StringBuilder path = new StringBuilder();
+    executor.getMachine().addObserver((machine, element, type) -> {
+      if (EventType.BEFORE_ELEMENT.equals(type)) {
+        path.append(Util.getStepAsJSON(machine, benchmark.verbose, false));
+      }
+    });
+
+    SingletonRandomGenerator.setSeed(seed);
+
+    executor.execute();
+
+    return new BenchmarkResult(identifier, group, path.toString(), executor.getMachine().getProfiler(), pathGenerator, seed);
+  }
+
   private boolean checkStronglyConnected(List<Context> contexts) throws Exception {
     boolean[][] connected = new boolean[contexts.size()][contexts.size()];
     for (int i = 0; i < contexts.size(); i++) {
@@ -643,6 +777,6 @@ public class CLI {
   }
 
   enum Command {
-    NONE, OFFLINE, ONLINE, METHODS, REQUIREMENTS, CONVERT, SOURCE, CHECK, UNIFY
+    NONE, OFFLINE, ONLINE, METHODS, REQUIREMENTS, CONVERT, SOURCE, CHECK, UNIFY, BENCHMARK
   }
 }
