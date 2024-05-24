@@ -42,7 +42,6 @@ import org.graphwalker.cli.util.BenchmarkResult;
 import org.graphwalker.cli.util.LoggerUtil;
 import org.graphwalker.cli.util.UnsupportedFileFormat;
 import org.graphwalker.core.condition.AlternativeCondition;
-import org.graphwalker.core.condition.CombinedCondition;
 import org.graphwalker.core.condition.StopCondition;
 import org.graphwalker.core.condition.TimeDuration;
 import org.graphwalker.core.event.EventType;
@@ -533,19 +532,39 @@ public class CLI {
 
     Random seedGenerator = new Random(benchmark.seed);
 
-    for (PathGenerator<StopCondition> pathGenerator : GetBenchmarkPathGenerators(benchmark.generators)) {
-      if (benchmark.verbose)
-        System.out.println("Running  benchmark(s) with path generator: " + pathGenerator.toString() + " and stop condition: " + pathGenerator.getStopCondition());
-      for (int i = 0; i < benchmark.runs; i++) {
-        try {
-          List<Context> contexts = inputFactory.create(Paths.get(benchmark.model));
-          benchmarkResults.add(GetBenchmarkedRun(i, pathGenerator.toString(), contexts, pathGenerator, seedGenerator.nextInt()));
-          if (benchmark.verbose)
-            System.out.println("Run " + (i + 1) + " of " + benchmark.runs + " completed: " + benchmarkResults.get(benchmarkResults.size() - 1).testSuiteSize + " elements visited in " + benchmarkResults.get(benchmarkResults.size() - 1).generationTime + " μs.");
-        } catch (DslException e) {
-          throw new Exception("The following syntax error occurred when parsing: '" + benchmark.model + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
+    try (BufferedReader reader = new BufferedReader(new FileReader(benchmark.generators))) {
+      while (reader.ready()) {
+        String generatorString = reader.readLine();
+
+        if (benchmark.verbose)
+          System.out.println("Running benchmark(s) for generator: " + generatorString);
+
+        for (int i = 0; i < benchmark.runs; i++) {
+
+          PathGenerator<StopCondition> generator = GeneratorFactory.parse(generatorString);
+          if (benchmark.killAfter > 0) {
+            AlternativeCondition newCondition = new AlternativeCondition();
+            newCondition.addStopCondition(generator.getStopCondition());
+            newCondition.addStopCondition(new TimeDuration(benchmark.killAfter, TimeUnit.SECONDS));
+            generator.setStopCondition(newCondition);
+          }
+
+          try {
+            List<Context> contexts = inputFactory.create(Paths.get(benchmark.model));
+            benchmarkResults.add(GetBenchmarkedRun(i, generator.toString(), contexts, generator, seedGenerator.nextInt()));
+            if (benchmark.verbose)
+              System.out.println("Run " + (i + 1) + " of " + benchmark.runs + " completed: " + benchmarkResults.get(benchmarkResults.size() - 1).testSuiteSize + " elements visited in " + benchmarkResults.get(benchmarkResults.size() - 1).generationTime + " μs.");
+          } catch (DslException e) {
+            throw new Exception("The following syntax error occurred when parsing: '" + benchmark.model + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
+          }
         }
       }
+    } catch (IOException e) {
+      logger.error("Could not read the file: '{}'.", benchmark.generators);
+      throw new RuntimeException("Could not read the file: '" + benchmark.generators + "'.");
+    } catch (DslException e) {
+      logger.error("The following syntax error occurred when parsing: '{}'.{}Syntax Error: {}", benchmark.generators, System.lineSeparator(), e.getMessage());
+      throw new RuntimeException("The following syntax error occurred when parsing: '" + benchmark.generators + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
     }
 
     if (!benchmark.output.isEmpty()) {
@@ -601,22 +620,6 @@ public class CLI {
     }
   }
 
-  private List<PathGenerator<StopCondition>> GetBenchmarkPathGenerators(String generatorFile) {
-    List<PathGenerator<StopCondition>> pathGenerators = new ArrayList<>();
-    try (BufferedReader reader = new BufferedReader(new FileReader(generatorFile))) {
-      while (reader.ready()) {
-        pathGenerators.add(GeneratorFactory.parse(reader.readLine()));
-      }
-    } catch (IOException e) {
-      logger.error("Could not read the file: '{}'.", generatorFile);
-      throw new RuntimeException("Could not read the file: '" + generatorFile + "'.");
-    } catch (DslException e) {
-      logger.error("The following syntax error occurred when parsing: '{}'.{}Syntax Error: {}", generatorFile, System.lineSeparator(), e.getMessage());
-      throw new RuntimeException("The following syntax error occurred when parsing: '" + generatorFile + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
-    }
-    return pathGenerators;
-  }
-
   private BenchmarkResult GetBenchmarkedRun(int identifier, String group, List<Context> contexts, PathGenerator<StopCondition> pathGenerator, long seed) throws Exception {
     TestExecutor executor;
     if (benchmark.unified) {
@@ -624,11 +627,6 @@ public class CLI {
     } else {
       executor = new TestExecutor(contexts);
     }
-
-    AlternativeCondition newCondition = new AlternativeCondition();
-    newCondition.addStopCondition(pathGenerator.getStopCondition());
-    newCondition.addStopCondition(new TimeDuration(benchmark.killAfter, TimeUnit.SECONDS));
-    pathGenerator.setStopCondition(newCondition);
 
     executor.getMachine().getCurrentContext().setPathGenerator(pathGenerator);
 
