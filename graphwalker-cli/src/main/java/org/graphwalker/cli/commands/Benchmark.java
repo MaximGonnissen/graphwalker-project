@@ -40,7 +40,7 @@ public class Benchmark {
   public boolean verbose = false;
 
   @Parameter(names = {"--output", "-o"}, required = true,
-    description = "Output the results to a file.")
+    description = "Output directory for benchmarking results.")
   public String output = "";
 
   @Parameter(names = {"--threads", "-t"}, required = false,
