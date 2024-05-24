@@ -569,8 +569,10 @@ public class CLI {
     }
 
     if (!benchmark.output.isEmpty()) {
-      // Get output folder
-      Path outputFolder = Paths.get(benchmark.output).getParent();
+      Path output = Paths.get(benchmark.output);
+      Path outputFolder = output.toFile().isDirectory() ? output : output.getParent().resolve("benchmarks");
+      if (!outputFolder.toFile().exists())
+        outputFolder.toFile().mkdirs();
 
       GsonBuilder gsonBuilder = new GsonBuilder();
       Gson gson = gsonBuilder.setPrettyPrinting().create();
@@ -624,7 +626,7 @@ public class CLI {
         reportJson.add(group, groupJson);
       }
 
-      try (FileWriter fileWriter = new FileWriter(benchmark.output)) {
+      try (FileWriter fileWriter = new FileWriter(outputFolder.resolve("report.json").toFile())) {
         fileWriter.write(gson.toJson(reportJson));
       }
     }
