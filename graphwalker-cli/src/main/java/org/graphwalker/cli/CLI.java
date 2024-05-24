@@ -602,6 +602,10 @@ public class CLI {
 
         long totalGenerationTime = 0;
         long totalTestSuiteSize = 0;
+        long minGenerationTime = Long.MAX_VALUE;
+        long maxGenerationTime = Long.MIN_VALUE;
+        long minTestSuiteSize = Long.MAX_VALUE;
+        long maxTestSuiteSize = Long.MIN_VALUE;
         JsonObject groupRuns = new JsonObject();
         for (BenchmarkResult result : groups.get(group)) {
           JsonObject runJson = new JsonObject();
@@ -613,6 +617,10 @@ public class CLI {
 
           totalGenerationTime += result.generationTime;
           totalTestSuiteSize += result.testSuiteSize;
+          minGenerationTime = Math.min(minGenerationTime, result.generationTime);
+          maxGenerationTime = Math.max(maxGenerationTime, result.generationTime);
+          minTestSuiteSize = Math.min(minTestSuiteSize, result.testSuiteSize);
+          maxTestSuiteSize = Math.max(maxTestSuiteSize, result.testSuiteSize);
           runJson.addProperty("Seed", result.seed);
           runJson.addProperty("GenerationTime", result.generationTime);
           runJson.addProperty("TestSuiteSize", result.testSuiteSize);
@@ -622,6 +630,10 @@ public class CLI {
         groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
         groupJson.addProperty("AverageGenerationTime", totalGenerationTime / groups.get(group).size());
         groupJson.addProperty("AverageTestSuiteSize", totalTestSuiteSize / groups.get(group).size());
+        groupJson.addProperty("MinGenerationTime", minGenerationTime);
+        groupJson.addProperty("MaxGenerationTime", maxGenerationTime);
+        groupJson.addProperty("MinTestSuiteSize", minTestSuiteSize);
+        groupJson.addProperty("MaxTestSuiteSize", maxTestSuiteSize);
         groupJson.add("Runs", groupRuns);
         reportJson.add(group, groupJson);
       }
