@@ -31,6 +31,7 @@ import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.ParameterException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
 import com.sun.jersey.api.core.DefaultResourceConfig;
@@ -599,18 +600,27 @@ public class CLI {
 
         long totalGenerationTime = 0;
         long totalTestSuiteSize = 0;
+        JsonObject groupRuns = new JsonObject();
         for (BenchmarkResult result : groups.get(group)) {
+          JsonObject runJson = new JsonObject();
+
           Path runOutput = groupOutput.resolve("run_" + result.identifier + ".json");
           try (FileWriter fileWriter = new FileWriter(runOutput.toFile())) {
             fileWriter.write(result.path);
           }
+
           totalGenerationTime += result.generationTime;
           totalTestSuiteSize += result.testSuiteSize;
+          runJson.addProperty("Seed", result.seed);
+          runJson.addProperty("GenerationTime", result.generationTime);
+          runJson.addProperty("TestSuiteSize", result.testSuiteSize);
+          groupRuns.add("Run_" + result.identifier, runJson);
         }
         groupJson.addProperty("TotalGenerationTime", totalGenerationTime);
         groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
         groupJson.addProperty("AverageGenerationTime", totalGenerationTime / groups.get(group).size());
         groupJson.addProperty("AverageTestSuiteSize", totalTestSuiteSize / groups.get(group).size());
+        groupJson.add("Runs", groupRuns);
         reportJson.add(group, groupJson);
       }
 
