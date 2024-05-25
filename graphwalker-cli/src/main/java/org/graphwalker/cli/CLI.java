@@ -606,11 +606,11 @@ public class CLI {
         long maxGenerationTime = Long.MIN_VALUE;
         long minTestSuiteSize = Long.MAX_VALUE;
         long maxTestSuiteSize = Long.MIN_VALUE;
-        JsonObject groupRuns = new JsonObject();
         for (BenchmarkResult result : groups.get(group)) {
           JsonObject runJson = new JsonObject();
 
-          Path runOutput = groupOutput.resolve("run_" + result.identifier + ".json");
+          Path runOutput = groupOutput.resolve("run_" + result.identifier + "_path.json");
+          Path runReport = groupOutput.resolve("run_" + result.identifier + "_report.json");
           try (FileWriter fileWriter = new FileWriter(runOutput.toFile())) {
             fileWriter.write(result.path);
           }
@@ -624,7 +624,9 @@ public class CLI {
           runJson.addProperty("Seed", result.seed);
           runJson.addProperty("GenerationTime", result.generationTime);
           runJson.addProperty("TestSuiteSize", result.testSuiteSize);
-          groupRuns.add("Run_" + result.identifier, runJson);
+          try (FileWriter fileWriter = new FileWriter(runReport.toFile())) {
+            fileWriter.write(gson.toJson(runJson));
+          }
         }
         groupJson.addProperty("TotalGenerationTime", totalGenerationTime);
         groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
@@ -634,7 +636,6 @@ public class CLI {
         groupJson.addProperty("MaxGenerationTime", maxGenerationTime);
         groupJson.addProperty("MinTestSuiteSize", minTestSuiteSize);
         groupJson.addProperty("MaxTestSuiteSize", maxTestSuiteSize);
-        groupJson.add("Runs", groupRuns);
         reportJson.add(group, groupJson);
       }
 
