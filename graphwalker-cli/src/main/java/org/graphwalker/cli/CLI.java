@@ -659,6 +659,8 @@ public class CLI {
       long maxGenerationTime = Long.MIN_VALUE;
       long minTestSuiteSize = Long.MAX_VALUE;
       long maxTestSuiteSize = Long.MIN_VALUE;
+      long totalVertexVisits = 0;
+      long totalEdgeVisits = 0;
       for (BenchmarkResult result : groups.get(group)) {
         JsonObject runJson = new JsonObject();
 
@@ -674,9 +676,15 @@ public class CLI {
         maxGenerationTime = Math.max(maxGenerationTime, result.generationTime);
         minTestSuiteSize = Math.min(minTestSuiteSize, result.testSuiteSize);
         maxTestSuiteSize = Math.max(maxTestSuiteSize, result.testSuiteSize);
+        totalVertexVisits += result.VertexVisits.values().stream().mapToLong(Long::longValue).sum();
+        totalEdgeVisits += result.EdgeVisits.values().stream().mapToLong(Long::longValue).sum();
+
         runJson.addProperty("Seed", result.seed);
         runJson.addProperty("GenerationTime", result.generationTime);
         runJson.addProperty("TestSuiteSize", result.testSuiteSize);
+        runJson.add("VertexVisits", gson.toJsonTree(result.VertexVisits));
+        runJson.add("EdgeVisits", gson.toJsonTree(result.EdgeVisits));
+
         try (FileWriter fileWriter = new FileWriter(runReport.toFile())) {
           fileWriter.write(gson.toJson(runJson));
         }
@@ -689,6 +697,10 @@ public class CLI {
       groupJson.addProperty("MaxGenerationTime", maxGenerationTime);
       groupJson.addProperty("MinTestSuiteSize", minTestSuiteSize);
       groupJson.addProperty("MaxTestSuiteSize", maxTestSuiteSize);
+      groupJson.addProperty("TotalVertexVisits", totalVertexVisits);
+      groupJson.addProperty("TotalEdgeVisits", totalEdgeVisits);
+      groupJson.addProperty("AverageVertexVisits", totalVertexVisits / groups.get(group).size());
+      groupJson.addProperty("AverageEdgeVisits", totalEdgeVisits / groups.get(group).size());
       reportGeneratorsList.add(group, groupJson);
     }
 
