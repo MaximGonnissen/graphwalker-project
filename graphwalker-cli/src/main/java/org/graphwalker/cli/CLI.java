@@ -31,7 +31,6 @@ import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.ParameterException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
 import com.sun.jersey.api.core.DefaultResourceConfig;
@@ -49,10 +48,7 @@ import org.graphwalker.core.event.EventType;
 import org.graphwalker.core.generator.PathGenerator;
 import org.graphwalker.core.generator.SingletonRandomGenerator;
 import org.graphwalker.core.machine.*;
-import org.graphwalker.core.model.Edge;
-import org.graphwalker.core.model.Element;
-import org.graphwalker.core.model.Requirement;
-import org.graphwalker.core.model.Vertex;
+import org.graphwalker.core.model.*;
 import org.graphwalker.dsl.antlr.DslException;
 import org.graphwalker.dsl.antlr.generator.GeneratorFactory;
 import org.graphwalker.io.common.ResourceUtils;
@@ -608,19 +604,37 @@ public class CLI {
 
     GsonBuilder gsonBuilder = new GsonBuilder();
     Gson gson = gsonBuilder.setPrettyPrinting().create();
+    String modelName = Paths.get(benchmark.model).getFileName().toString().replaceFirst("\\..*$", "");
 
     JsonObject reportJson = new JsonObject();
-    reportJson.addProperty("Timestamp", System.currentTimeMillis());
-    reportJson.addProperty("ModelPath", benchmark.model);
-    reportJson.addProperty("GeneratorsPath", benchmark.generators);
-    reportJson.addProperty("Output", outputFolder.toString());
-    reportJson.addProperty("Unified", benchmark.unified);
-    reportJson.addProperty("Verbose", benchmark.verbose);
-    reportJson.addProperty("BaseSeed", benchmark.seed);
-    reportJson.addProperty("Threads", benchmark.threads);
-    reportJson.addProperty("Runs", benchmark.runs);
-    reportJson.addProperty("MedianRuns", benchmark.medianRuns);
-    reportJson.addProperty("KillAfter", benchmark.killAfter);
+    {
+      reportJson.addProperty("Timestamp", System.currentTimeMillis());
+      reportJson.addProperty("ModelPath", benchmark.model);
+      reportJson.addProperty("GeneratorsPath", benchmark.generators);
+      reportJson.addProperty("Output", outputFolder.toString());
+      reportJson.addProperty("Unified", benchmark.unified);
+      reportJson.addProperty("Verbose", benchmark.verbose);
+      reportJson.addProperty("BaseSeed", benchmark.seed);
+      reportJson.addProperty("Threads", benchmark.threads);
+      reportJson.addProperty("Runs", benchmark.runs);
+      reportJson.addProperty("MedianRuns", benchmark.medianRuns);
+      reportJson.addProperty("KillAfter", benchmark.killAfter);
+    }
+    {
+      List<Context> contexts = contextFactory.create(Paths.get(benchmark.model));
+      Context unifiedContext = org.graphwalker.core.utils.Unify.CreateUnifiedContext(modelName, new JavaContext(), contexts.toArray(new Context[0]));
+      Model.RuntimeModel model = unifiedContext.getModel();
+
+      JsonObject modelJson = new JsonObject();
+      modelJson.addProperty("ModelName", model.getName());
+      modelJson.addProperty("ModelId", model.getId());
+      modelJson.addProperty("VerticesCount", model.getVertices().size());
+      modelJson.addProperty("EdgesCount", model.getEdges().size());
+      modelJson.addProperty("RequirementsCount", model.getRequirements().size());
+      modelJson.addProperty("ActionsCount", model.getActions().size());
+      modelJson.addProperty("Properties", model.getProperties().toString());
+      reportJson.add("Model", modelJson);
+    }
 
     JsonObject reportGeneratorsList = new JsonObject();
 
