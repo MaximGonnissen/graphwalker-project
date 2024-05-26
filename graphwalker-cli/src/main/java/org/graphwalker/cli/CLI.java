@@ -31,7 +31,6 @@ import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.ParameterException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
 import com.sun.jersey.api.core.DefaultResourceConfig;
@@ -527,7 +526,7 @@ public class CLI {
   }
 
   private void runCommandBenchmark() throws Exception, UnsupportedFileFormat {
-    ContextFactory inputFactory = getContextFactory(benchmark.model);
+    ContextFactory contextFactory = getContextFactory(benchmark.model);
 
     List<BenchmarkResult> benchmarkResults = new ArrayList<>();
 
@@ -537,111 +536,129 @@ public class CLI {
       while (reader.ready()) {
         String generatorString = reader.readLine();
 
-        if (benchmark.verbose)
-          System.out.println("Running benchmark(s) for generator: " + generatorString);
+        if (generatorString == null || generatorString.isEmpty() || generatorString.startsWith("#")) {
+          continue;
+        }
+
+        if (benchmark.verbose) System.out.println("Running benchmark(s) for generator: " + generatorString);
 
         for (int i = 0; i < benchmark.runs; i++) {
-
-          PathGenerator<StopCondition> generator = GeneratorFactory.parse(generatorString);
-          if (benchmark.killAfter > 0) {
-            AlternativeCondition newCondition = new AlternativeCondition();
-            newCondition.addStopCondition(generator.getStopCondition());
-            newCondition.addStopCondition(new TimeDuration(benchmark.killAfter, TimeUnit.SECONDS));
-            generator.setStopCondition(newCondition);
-          }
-
-          try {
-            List<Context> contexts = inputFactory.create(Paths.get(benchmark.model));
-            benchmarkResults.add(GetBenchmarkedRun(i, generator.toString(), contexts, generator, seedGenerator.nextInt()));
-            if (benchmark.verbose)
-              System.out.println("Run " + (i + 1) + " of " + benchmark.runs + " completed: " + benchmarkResults.get(benchmarkResults.size() - 1).testSuiteSize + " elements visited in " + benchmarkResults.get(benchmarkResults.size() - 1).generationTime + " μs.");
-          } catch (DslException e) {
-            throw new Exception("The following syntax error occurred when parsing: '" + benchmark.model + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
-          }
+          long seed = seedGenerator.nextLong();
+          BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, i);
+          benchmarkResults.add(result);
         }
       }
     } catch (IOException e) {
       logger.error("Could not read the file: '{}'.", benchmark.generators);
-      throw new RuntimeException("Could not read the file: '" + benchmark.generators + "'.");
+      throw new RuntimeException("Could not read the file: '" + benchmark.generators + "': " + e.getMessage());
     } catch (DslException e) {
       logger.error("The following syntax error occurred when parsing: '{}'.{}Syntax Error: {}", benchmark.generators, System.lineSeparator(), e.getMessage());
       throw new RuntimeException("The following syntax error occurred when parsing: '" + benchmark.generators + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
     }
 
+    if (benchmark.verbose) System.out.println("All benchmarks completed.");
+
+    Path outputFolder;
     if (!benchmark.output.isEmpty()) {
       Path output = Paths.get(benchmark.output);
-      Path outputFolder = output.toFile().isDirectory() ? output : output.getParent().resolve("benchmarks");
-      if (!outputFolder.toFile().exists())
-        outputFolder.toFile().mkdirs();
+      outputFolder = output.toFile().isDirectory() ? output : output.getParent().resolve("benchmarks");
+    } else {
+      Path output = Paths.get(benchmark.generators);
+      String folderName = output.getFileName().toString().replaceFirst("\\..*$", "");
+      outputFolder = output.getParent().resolve(folderName);
+    }
 
-      GsonBuilder gsonBuilder = new GsonBuilder();
-      Gson gson = gsonBuilder.setPrettyPrinting().create();
+    if (benchmark.verbose) System.out.println("Will output benchmark results to " + outputFolder);
 
-      JsonObject reportJson = new JsonObject();
-      reportJson.addProperty("BaseSeed", benchmark.seed);
-      reportJson.addProperty("Runs", benchmark.runs);
-      reportJson.addProperty("Generators", benchmark.generators);
-      reportJson.addProperty("Model", benchmark.model);
-      reportJson.addProperty("Unified", benchmark.unified);
-      reportJson.addProperty("Verbose", benchmark.verbose);
+    if (!outputFolder.toFile().exists()) outputFolder.toFile().mkdirs();
 
-      Map<String, List<BenchmarkResult>> groups = new HashMap<>();
-      for (BenchmarkResult result : benchmarkResults) {
-        if (!groups.containsKey(result.group)) {
-          groups.put(result.group, new ArrayList<>());
-        }
-        groups.get(result.group).add(result);
+    GsonBuilder gsonBuilder = new GsonBuilder();
+    Gson gson = gsonBuilder.setPrettyPrinting().create();
+
+    JsonObject reportJson = new JsonObject();
+    reportJson.addProperty("BaseSeed", benchmark.seed);
+    reportJson.addProperty("Runs", benchmark.runs);
+    reportJson.addProperty("Generators", benchmark.generators);
+    reportJson.addProperty("Model", benchmark.model);
+    reportJson.addProperty("Unified", benchmark.unified);
+    reportJson.addProperty("Verbose", benchmark.verbose);
+
+    Map<String, List<BenchmarkResult>> groups = new HashMap<>();
+    for (BenchmarkResult result : benchmarkResults) {
+      if (!groups.containsKey(result.group)) {
+        groups.put(result.group, new ArrayList<>());
+      }
+      groups.get(result.group).add(result);
+    }
+
+    for (String group : groups.keySet()) {
+      JsonObject groupJson = new JsonObject();
+      Path groupOutput = outputFolder.resolve("runs").resolve(group);
+      if (!groupOutput.toFile().exists()) {
+        groupOutput.toFile().mkdirs();
       }
 
-      for (String group : groups.keySet()) {
-        JsonObject groupJson = new JsonObject();
-        Path groupOutput = outputFolder.resolve("runs").resolve(group);
-        if (!groupOutput.toFile().exists()) {
-          groupOutput.toFile().mkdirs();
+      long totalGenerationTime = 0;
+      long totalTestSuiteSize = 0;
+      long minGenerationTime = Long.MAX_VALUE;
+      long maxGenerationTime = Long.MIN_VALUE;
+      long minTestSuiteSize = Long.MAX_VALUE;
+      long maxTestSuiteSize = Long.MIN_VALUE;
+      for (BenchmarkResult result : groups.get(group)) {
+        JsonObject runJson = new JsonObject();
+
+        Path runOutput = groupOutput.resolve("run_" + result.identifier + "_path.json");
+        Path runReport = groupOutput.resolve("run_" + result.identifier + "_report.json");
+        try (FileWriter fileWriter = new FileWriter(runOutput.toFile())) {
+          fileWriter.write(result.path);
         }
 
-        long totalGenerationTime = 0;
-        long totalTestSuiteSize = 0;
-        long minGenerationTime = Long.MAX_VALUE;
-        long maxGenerationTime = Long.MIN_VALUE;
-        long minTestSuiteSize = Long.MAX_VALUE;
-        long maxTestSuiteSize = Long.MIN_VALUE;
-        for (BenchmarkResult result : groups.get(group)) {
-          JsonObject runJson = new JsonObject();
-
-          Path runOutput = groupOutput.resolve("run_" + result.identifier + "_path.json");
-          Path runReport = groupOutput.resolve("run_" + result.identifier + "_report.json");
-          try (FileWriter fileWriter = new FileWriter(runOutput.toFile())) {
-            fileWriter.write(result.path);
-          }
-
-          totalGenerationTime += result.generationTime;
-          totalTestSuiteSize += result.testSuiteSize;
-          minGenerationTime = Math.min(minGenerationTime, result.generationTime);
-          maxGenerationTime = Math.max(maxGenerationTime, result.generationTime);
-          minTestSuiteSize = Math.min(minTestSuiteSize, result.testSuiteSize);
-          maxTestSuiteSize = Math.max(maxTestSuiteSize, result.testSuiteSize);
-          runJson.addProperty("Seed", result.seed);
-          runJson.addProperty("GenerationTime", result.generationTime);
-          runJson.addProperty("TestSuiteSize", result.testSuiteSize);
-          try (FileWriter fileWriter = new FileWriter(runReport.toFile())) {
-            fileWriter.write(gson.toJson(runJson));
-          }
+        totalGenerationTime += result.generationTime;
+        totalTestSuiteSize += result.testSuiteSize;
+        minGenerationTime = Math.min(minGenerationTime, result.generationTime);
+        maxGenerationTime = Math.max(maxGenerationTime, result.generationTime);
+        minTestSuiteSize = Math.min(minTestSuiteSize, result.testSuiteSize);
+        maxTestSuiteSize = Math.max(maxTestSuiteSize, result.testSuiteSize);
+        runJson.addProperty("Seed", result.seed);
+        runJson.addProperty("GenerationTime", result.generationTime);
+        runJson.addProperty("TestSuiteSize", result.testSuiteSize);
+        try (FileWriter fileWriter = new FileWriter(runReport.toFile())) {
+          fileWriter.write(gson.toJson(runJson));
         }
-        groupJson.addProperty("TotalGenerationTime", totalGenerationTime);
-        groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
-        groupJson.addProperty("AverageGenerationTime", totalGenerationTime / groups.get(group).size());
-        groupJson.addProperty("AverageTestSuiteSize", totalTestSuiteSize / groups.get(group).size());
-        groupJson.addProperty("MinGenerationTime", minGenerationTime);
-        groupJson.addProperty("MaxGenerationTime", maxGenerationTime);
-        groupJson.addProperty("MinTestSuiteSize", minTestSuiteSize);
-        groupJson.addProperty("MaxTestSuiteSize", maxTestSuiteSize);
-        reportJson.add(group, groupJson);
       }
+      groupJson.addProperty("TotalGenerationTime", totalGenerationTime);
+      groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
+      groupJson.addProperty("AverageGenerationTime", totalGenerationTime / groups.get(group).size());
+      groupJson.addProperty("AverageTestSuiteSize", totalTestSuiteSize / groups.get(group).size());
+      groupJson.addProperty("MinGenerationTime", minGenerationTime);
+      groupJson.addProperty("MaxGenerationTime", maxGenerationTime);
+      groupJson.addProperty("MinTestSuiteSize", minTestSuiteSize);
+      groupJson.addProperty("MaxTestSuiteSize", maxTestSuiteSize);
+      reportJson.add(group, groupJson);
+    }
 
-      try (FileWriter fileWriter = new FileWriter(outputFolder.resolve("report.json").toFile())) {
-        fileWriter.write(gson.toJson(reportJson));
-      }
+    try (FileWriter fileWriter = new FileWriter(outputFolder.resolve("report.json").toFile())) {
+      fileWriter.write(gson.toJson(reportJson));
+    }
+  }
+
+  private BenchmarkResult RunBenchmark(String generatorString, ContextFactory contextFactory, long seed, int identifier) throws Exception, UnsupportedFileFormat {
+    PathGenerator<StopCondition> generator = GeneratorFactory.parse(generatorString);
+    if (benchmark.killAfter > 0) {
+      AlternativeCondition newCondition = new AlternativeCondition();
+      newCondition.addStopCondition(generator.getStopCondition());
+      newCondition.addStopCondition(new TimeDuration(benchmark.killAfter, TimeUnit.SECONDS));
+      generator.setStopCondition(newCondition);
+    }
+
+    try {
+      List<Context> contexts = contextFactory.create(Paths.get(benchmark.model));
+      BenchmarkResult result = GetBenchmarkedRun(identifier, generator.toString(), contexts, generator, seed);
+      if (benchmark.verbose)
+        System.out.println("Run " + (identifier + 1) + " of " + benchmark.runs + " completed: " + result.testSuiteSize + " elements visited in " + result.generationTime + " μs.");
+      return result;
+    } catch (DslException e) {
+      throw new Exception("The following syntax error occurred when parsing: '" + benchmark.model + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
     }
   }
 

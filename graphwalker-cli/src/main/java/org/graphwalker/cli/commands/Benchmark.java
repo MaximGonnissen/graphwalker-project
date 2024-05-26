@@ -39,7 +39,7 @@ public class Benchmark {
     description = "Will print more details to stdout.")
   public boolean verbose = false;
 
-  @Parameter(names = {"--output", "-o"}, required = true,
+  @Parameter(names = {"--output", "-o"}, required = false,
     description = "Output directory for benchmarking results.")
   public String output = "";
 
