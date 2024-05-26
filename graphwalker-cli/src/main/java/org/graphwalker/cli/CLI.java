@@ -31,6 +31,7 @@ import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.ParameterException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
 import com.sun.jersey.api.core.DefaultResourceConfig;
@@ -553,7 +554,7 @@ public class CLI {
               try {
                 for (int j = 0; j < benchmark.runs; j++) {
                   long seed = seedGenerator.nextLong();
-                  BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, j);
+                  BenchmarkResult result = CalculateMedianBenchmark(generatorString, contextFactory, seed, j);
                   benchmarkResults.add(result);
                 }
               } catch (Exception e) {
@@ -570,7 +571,7 @@ public class CLI {
         if (!threadStarted) {
           for (int i = 0; i < benchmark.runs; i++) {
             long seed = seedGenerator.nextLong();
-            BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, i);
+            BenchmarkResult result = CalculateMedianBenchmark(generatorString, contextFactory, seed, i);
             benchmarkResults.add(result);
           }
         }
@@ -609,12 +610,19 @@ public class CLI {
     Gson gson = gsonBuilder.setPrettyPrinting().create();
 
     JsonObject reportJson = new JsonObject();
-    reportJson.addProperty("BaseSeed", benchmark.seed);
-    reportJson.addProperty("Runs", benchmark.runs);
-    reportJson.addProperty("Generators", benchmark.generators);
-    reportJson.addProperty("Model", benchmark.model);
+    reportJson.addProperty("Timestamp", System.currentTimeMillis());
+    reportJson.addProperty("ModelPath", benchmark.model);
+    reportJson.addProperty("GeneratorsPath", benchmark.generators);
+    reportJson.addProperty("Output", outputFolder.toString());
     reportJson.addProperty("Unified", benchmark.unified);
     reportJson.addProperty("Verbose", benchmark.verbose);
+    reportJson.addProperty("BaseSeed", benchmark.seed);
+    reportJson.addProperty("Threads", benchmark.threads);
+    reportJson.addProperty("Runs", benchmark.runs);
+    reportJson.addProperty("MedianRuns", benchmark.medianRuns);
+    reportJson.addProperty("KillAfter", benchmark.killAfter);
+
+    JsonObject reportGeneratorsList = new JsonObject();
 
     Map<String, List<BenchmarkResult>> groups = new HashMap<>();
     for (BenchmarkResult result : benchmarkResults) {
@@ -667,15 +675,34 @@ public class CLI {
       groupJson.addProperty("MaxGenerationTime", maxGenerationTime);
       groupJson.addProperty("MinTestSuiteSize", minTestSuiteSize);
       groupJson.addProperty("MaxTestSuiteSize", maxTestSuiteSize);
-      reportJson.add(group, groupJson);
+      reportGeneratorsList.add(group, groupJson);
     }
+
+    reportJson.add("Generators", reportGeneratorsList);
 
     try (FileWriter fileWriter = new FileWriter(outputFolder.resolve("report.json").toFile())) {
       fileWriter.write(gson.toJson(reportJson));
     }
   }
 
-  private BenchmarkResult RunBenchmark(String generatorString, ContextFactory contextFactory, long seed, int identifier) throws Exception, UnsupportedFileFormat {
+  private BenchmarkResult CalculateMedianBenchmark(String generatorString, ContextFactory contextFactory, long seed, int identifier) throws Exception, UnsupportedFileFormat {
+    int medianRuns = Math.max(1, benchmark.medianRuns);
+    List<BenchmarkResult> results = new ArrayList<>();
+    for (int i = 0; i < medianRuns; i++) {
+      BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, identifier);
+      results.add(result);
+    }
+
+    if (results.size() == 1) {
+      return results.get(0);
+    }
+
+    results.sort(Comparator.comparingLong(o -> o.generationTime));
+
+    return results.get(results.size() / 2);
+  }
+
+  private BenchmarkResult RunBenchmark(String generatorString, ContextFactory contextFactory, long seed, int identifier) throws Exception {
     PathGenerator<StopCondition> generator = GeneratorFactory.parse(generatorString);
     if (benchmark.killAfter > 0) {
       AlternativeCondition newCondition = new AlternativeCondition();
@@ -695,7 +722,7 @@ public class CLI {
     }
   }
 
-  private BenchmarkResult GetBenchmarkedRun(int identifier, String group, List<Context> contexts, PathGenerator<StopCondition> pathGenerator, long seed) throws Exception {
+  private BenchmarkResult GetBenchmarkedRun(int identifier, String group, List<Context> contexts, PathGenerator<StopCondition> pathGenerator, long seed) {
     TestExecutor executor;
     if (benchmark.unified) {
       executor = new UnifiedTestExecutor(contexts);
@@ -719,7 +746,7 @@ public class CLI {
     return new BenchmarkResult(identifier, group, path.toString(), executor.getMachine().getProfiler(), pathGenerator, seed);
   }
 
-  private boolean checkStronglyConnected(List<Context> contexts) throws Exception {
+  private boolean checkStronglyConnected(List<Context> contexts) {
     boolean[][] connected = new boolean[contexts.size()][contexts.size()];
     for (int i = 0; i < contexts.size(); i++) {
       for (int j = 0; j < contexts.size(); j++) {

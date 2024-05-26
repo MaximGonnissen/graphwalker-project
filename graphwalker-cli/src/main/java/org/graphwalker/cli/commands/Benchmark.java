@@ -51,6 +51,10 @@ public class Benchmark {
     description = "Number of runs to do.")
   public int runs = 1;
 
+  @Parameter(names = {"--median_runs", "-m"}, required = false,
+    description = "Number of runs to do for median calculation.")
+  public int medianRuns = 5;
+
   @Parameter(names = {"--input", "-i"}, required = true, arity = 1,
     description = "The model, as a GRAPHML or JSON file.")
   public String model = "";
