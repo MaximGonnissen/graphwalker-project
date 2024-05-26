@@ -532,6 +532,9 @@ public class CLI {
 
     Random seedGenerator = new Random(benchmark.seed);
 
+    int threadsCount = Math.max(1, benchmark.threads - 1);  // -1 because the main thread is also used
+    Thread[] threads = new Thread[threadsCount];
+
     try (BufferedReader reader = new BufferedReader(new FileReader(benchmark.generators))) {
       while (reader.ready()) {
         String generatorString = reader.readLine();
@@ -542,10 +545,33 @@ public class CLI {
 
         if (benchmark.verbose) System.out.println("Running benchmark(s) for generator: " + generatorString);
 
-        for (int i = 0; i < benchmark.runs; i++) {
-          long seed = seedGenerator.nextLong();
-          BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, i);
-          benchmarkResults.add(result);
+        boolean threadStarted = false;
+        for (int i = 0; i < threadsCount; i++) {
+          if (threads[i] == null || !threads[i].isAlive()) {
+            threads[i] = new Thread(() -> {
+              try {
+                for (int j = 0; j < benchmark.runs; j++) {
+                  long seed = seedGenerator.nextLong();
+                  BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, j);
+                  benchmarkResults.add(result);
+                }
+              } catch (Exception e) {
+                logger.error("An error occurred when running benchmark threaded: {}", generatorString, e);
+              } catch (UnsupportedFileFormat e) {
+                throw new RuntimeException(e);
+              }
+            });
+            threads[i].start();
+            threadStarted = true;
+            break;
+          }
+        }
+        if (!threadStarted) {
+          for (int i = 0; i < benchmark.runs; i++) {
+            long seed = seedGenerator.nextLong();
+            BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, i);
+            benchmarkResults.add(result);
+          }
         }
       }
     } catch (IOException e) {
@@ -554,6 +580,12 @@ public class CLI {
     } catch (DslException e) {
       logger.error("The following syntax error occurred when parsing: '{}'.{}Syntax Error: {}", benchmark.generators, System.lineSeparator(), e.getMessage());
       throw new RuntimeException("The following syntax error occurred when parsing: '" + benchmark.generators + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
+    }
+
+    for (Thread thread : threads) {
+      if (thread != null && thread.isAlive()) {
+        thread.join();
+      }
     }
 
     if (benchmark.verbose) System.out.println("All benchmarks completed.");
@@ -655,7 +687,7 @@ public class CLI {
       List<Context> contexts = contextFactory.create(Paths.get(benchmark.model));
       BenchmarkResult result = GetBenchmarkedRun(identifier, generator.toString(), contexts, generator, seed);
       if (benchmark.verbose)
-        System.out.println("Run " + (identifier + 1) + " of " + benchmark.runs + " completed: " + result.testSuiteSize + " elements visited in " + result.generationTime + " μs.");
+        System.out.println("- " + generatorString + ": Run " + (identifier + 1) + " of " + benchmark.runs + " completed: " + result.testSuiteSize + " elements visited in " + result.generationTime + " μs.");
       return result;
     } catch (DslException e) {
       throw new Exception("The following syntax error occurred when parsing: '" + benchmark.model + "'." + System.lineSeparator() + "Syntax Error: " + e.getMessage());
