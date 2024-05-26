@@ -730,10 +730,10 @@ public class CLI {
       groupJson.addProperty("TotalEdgeVisits", totalEdgeVisits);
       groupJson.addProperty("AverageVertexVisits", totalVertexVisits / groups.get(group).size());
       groupJson.addProperty("AverageEdgeVisits", totalEdgeVisits / groups.get(group).size());
-      groupJson.add("TotalVertexVisits", gson.toJsonTree(totalVertexVisitsMap));
-      groupJson.add("TotalEdgeVisits", gson.toJsonTree(totalEdgeVisitsMap));
-      groupJson.add("AverageVertexVisits", gson.toJsonTree(averageVertexVisitsMap));
-      groupJson.add("AverageEdgeVisits", gson.toJsonTree(averageEdgeVisitsMap));
+      groupJson.add("TotalVertexVisitsIndividual", gson.toJsonTree(totalVertexVisitsMap));
+      groupJson.add("TotalEdgeVisitsIndividual", gson.toJsonTree(totalEdgeVisitsMap));
+      groupJson.add("AverageVertexVisitsIndividual", gson.toJsonTree(averageVertexVisitsMap));
+      groupJson.add("AverageEdgeVisitsIndividual", gson.toJsonTree(averageEdgeVisitsMap));
       reportGeneratorsList.add(group, groupJson);
     }
 
