@@ -661,6 +661,9 @@ public class CLI {
       long maxTestSuiteSize = Long.MIN_VALUE;
       long totalVertexVisits = 0;
       long totalEdgeVisits = 0;
+      Map<String, Long> totalVertexVisitsMap = new HashMap<>();
+      Map<String, Long> totalEdgeVisitsMap = new HashMap<>();
+
       for (BenchmarkResult result : groups.get(group)) {
         JsonObject runJson = new JsonObject();
 
@@ -679,6 +682,20 @@ public class CLI {
         totalVertexVisits += result.VertexVisits.values().stream().mapToLong(Long::longValue).sum();
         totalEdgeVisits += result.EdgeVisits.values().stream().mapToLong(Long::longValue).sum();
 
+        for (String vertex : result.VertexVisits.keySet()) {
+          if (!totalVertexVisitsMap.containsKey(vertex)) {
+            totalVertexVisitsMap.put(vertex, 0L);
+          }
+          totalVertexVisitsMap.put(vertex, totalVertexVisitsMap.get(vertex) + result.VertexVisits.get(vertex));
+        }
+
+        for (String edge : result.EdgeVisits.keySet()) {
+          if (!totalEdgeVisitsMap.containsKey(edge)) {
+            totalEdgeVisitsMap.put(edge, 0L);
+          }
+          totalEdgeVisitsMap.put(edge, totalEdgeVisitsMap.get(edge) + result.EdgeVisits.get(edge));
+        }
+
         runJson.addProperty("Seed", result.seed);
         runJson.addProperty("GenerationTime", result.generationTime);
         runJson.addProperty("TestSuiteSize", result.testSuiteSize);
@@ -689,6 +706,18 @@ public class CLI {
           fileWriter.write(gson.toJson(runJson));
         }
       }
+
+      Map<String, Long> averageVertexVisitsMap = new HashMap<>();
+      Map<String, Long> averageEdgeVisitsMap = new HashMap<>();
+
+      for (String vertex : totalVertexVisitsMap.keySet()) {
+        averageVertexVisitsMap.put(vertex, totalVertexVisitsMap.get(vertex) / groups.get(group).size());
+      }
+
+      for (String edge : totalEdgeVisitsMap.keySet()) {
+        averageEdgeVisitsMap.put(edge, totalEdgeVisitsMap.get(edge) / groups.get(group).size());
+      }
+
       groupJson.addProperty("TotalGenerationTime", totalGenerationTime);
       groupJson.addProperty("TotalTestSuiteSize", totalTestSuiteSize);
       groupJson.addProperty("AverageGenerationTime", totalGenerationTime / groups.get(group).size());
@@ -701,6 +730,10 @@ public class CLI {
       groupJson.addProperty("TotalEdgeVisits", totalEdgeVisits);
       groupJson.addProperty("AverageVertexVisits", totalVertexVisits / groups.get(group).size());
       groupJson.addProperty("AverageEdgeVisits", totalEdgeVisits / groups.get(group).size());
+      groupJson.add("TotalVertexVisits", gson.toJsonTree(totalVertexVisitsMap));
+      groupJson.add("TotalEdgeVisits", gson.toJsonTree(totalEdgeVisitsMap));
+      groupJson.add("AverageVertexVisits", gson.toJsonTree(averageVertexVisitsMap));
+      groupJson.add("AverageEdgeVisits", gson.toJsonTree(averageEdgeVisitsMap));
       reportGeneratorsList.add(group, groupJson);
     }
 
