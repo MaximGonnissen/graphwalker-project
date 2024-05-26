@@ -689,7 +689,7 @@ public class CLI {
     int medianRuns = Math.max(1, benchmark.medianRuns);
     List<BenchmarkResult> results = new ArrayList<>();
     for (int i = 0; i < medianRuns; i++) {
-      BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, identifier);
+      BenchmarkResult result = RunBenchmark(generatorString, contextFactory, seed, identifier, false);
       results.add(result);
     }
 
@@ -699,10 +699,18 @@ public class CLI {
 
     results.sort(Comparator.comparingLong(o -> o.generationTime));
 
-    return results.get(results.size() / 2);
+    BenchmarkResult median = results.get(results.size() / 2);
+    if (benchmark.verbose)
+      System.out.println("- " + generatorString + ": Run " + (identifier + 1) + " of " + benchmark.runs + " completed: " + median.testSuiteSize + " elements visited in " + median.generationTime + " μs.");
+
+    return median;
   }
 
   private BenchmarkResult RunBenchmark(String generatorString, ContextFactory contextFactory, long seed, int identifier) throws Exception {
+    return RunBenchmark(generatorString, contextFactory, seed, identifier, true);
+  }
+
+  private BenchmarkResult RunBenchmark(String generatorString, ContextFactory contextFactory, long seed, int identifier, boolean doPrint) throws Exception {
     PathGenerator<StopCondition> generator = GeneratorFactory.parse(generatorString);
     if (benchmark.killAfter > 0) {
       AlternativeCondition newCondition = new AlternativeCondition();
@@ -714,7 +722,7 @@ public class CLI {
     try {
       List<Context> contexts = contextFactory.create(Paths.get(benchmark.model));
       BenchmarkResult result = GetBenchmarkedRun(identifier, generator.toString(), contexts, generator, seed);
-      if (benchmark.verbose)
+      if (benchmark.verbose && doPrint)
         System.out.println("- " + generatorString + ": Run " + (identifier + 1) + " of " + benchmark.runs + " completed: " + result.testSuiteSize + " elements visited in " + result.generationTime + " μs.");
       return result;
     } catch (DslException e) {
