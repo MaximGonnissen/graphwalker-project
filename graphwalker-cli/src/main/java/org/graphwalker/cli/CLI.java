@@ -532,7 +532,7 @@ public class CLI {
 
     Random seedGenerator = new Random(benchmark.seed);
 
-    int threadsCount = Math.max(1, benchmark.threads - 1);  // -1 because the main thread is also used
+    int threadsCount = Math.max(0, benchmark.threads - 1);  // -1 because the main thread is also used
     Thread[] threads = new Thread[threadsCount];
 
     try (BufferedReader reader = new BufferedReader(new FileReader(benchmark.generators))) {
@@ -548,6 +548,7 @@ public class CLI {
         boolean threadStarted = false;
         for (int i = 0; i < threadsCount; i++) {
           if (threads[i] == null || !threads[i].isAlive()) {
+            if (benchmark.verbose) System.out.println("Starting thread " + i + " for generator: " + generatorString);
             threads[i] = new Thread(() -> {
               try {
                 for (int j = 0; j < benchmark.runs; j++) {
