@@ -66,7 +66,7 @@ public class TestExecutor implements Executor, Observer {
   protected final Configuration configuration;
   protected final MachineConfiguration machineConfiguration;
   protected final Map<Context, MachineException> failures = new HashMap<>();
-  protected final Machine machine;
+  protected Machine machine;
   protected Result result;
   public TestExecutor(Configuration configuration) throws IOException {
     this.configuration = configuration;
