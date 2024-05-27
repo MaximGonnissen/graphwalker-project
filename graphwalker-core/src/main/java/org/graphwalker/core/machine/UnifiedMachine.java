@@ -33,6 +33,8 @@ public class UnifiedMachine extends MachineBase {
   }
 
   public UnifiedMachine(Context unifiedContext, Collection<Context> originalContexts) {
+    this.getContexts().add(unifiedContext);
+    this.getContexts().addAll(originalContexts);
     this.unifiedContext = unifiedContext;
     this.originalContexts = new ArrayList<>(originalContexts);
     executeInitActions();
