@@ -126,12 +126,23 @@ public class BenchmarkPathParser {
     return parseRunsDirectory(model, Objects.requireNonNull(getRunsDirectory(path)));
   }
 
-  public static void main(String[] args) {
-    Model model = new Model();
-    String path = "C:\\Maxim\\Studies\\Thesis\\Benchmarking\\benchmark_edge_coverage_fast";
-    List<BenchmarkPath> benchmarkPaths = getBenchmarkPaths(model, path);
-    for (BenchmarkPath benchmarkPath : benchmarkPaths) {
-      System.out.println(benchmarkPath);
+  public static List<LateInitBenchmarkPath> getLateInitBenchmarkPaths(String path) {
+    if (!isValidBenchmarkPath(path)) {
+      throw new IllegalArgumentException("Path is not a valid Benchmark path.");
     }
+    List<LateInitBenchmarkPath> lateInitBenchmarkPaths = new ArrayList<>();
+    File runsDirectory = getRunsDirectory(path);
+    for (File runSubDir : Objects.requireNonNull(runsDirectory.listFiles())) {
+      if (!runSubDir.isDirectory()) {
+        continue;
+      }
+      for (File runFile : Objects.requireNonNull(runSubDir.listFiles())) {
+        if (!isRunPathFile(runFile)) {
+          continue;
+        }
+        lateInitBenchmarkPaths.add(new LateInitBenchmarkPath(runFile, runSubDir));
+      }
+    }
+    return lateInitBenchmarkPaths;
   }
 }
