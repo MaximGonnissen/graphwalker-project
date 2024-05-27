@@ -23,6 +23,6 @@ public class LateInitBenchmarkPath {
 
   @Override
   public String toString() {
-    return "LateInitBenchmarkPath{pathFile='" + pathFile + "', directory='" + directory + "'}";
+    return "LateInitBenchmarkPath{pathFile='" + pathFile.getName() + "', directory='" + directory.getName() + "'}";
   }
 }
