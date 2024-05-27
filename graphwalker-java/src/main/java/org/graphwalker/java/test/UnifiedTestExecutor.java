@@ -3,7 +3,6 @@ package org.graphwalker.java.test;
 import org.graphwalker.core.event.Observer;
 import org.graphwalker.core.machine.Context;
 import org.graphwalker.core.machine.Machine;
-import org.graphwalker.core.machine.SimpleMachine;
 import org.graphwalker.core.machine.UnifiedMachine;
 import org.graphwalker.io.factory.java.JavaContext;
 
