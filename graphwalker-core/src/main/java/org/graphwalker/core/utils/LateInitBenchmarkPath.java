@@ -9,8 +9,8 @@ import java.io.File;
  * <p>A construct that allows one to initialize a BenchmarkPath after construction. To be used when the Machine is not readily available when gathering BenchmarkPaths (e.g. during tests)</p>
  */
 public class LateInitBenchmarkPath {
-  private final File pathFile;
-  private final File directory;
+  public final File pathFile;
+  public final File directory;
 
   public LateInitBenchmarkPath(File pathFile, File directory) {
     this.pathFile = pathFile;
