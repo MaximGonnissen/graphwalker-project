@@ -63,11 +63,11 @@ import static org.graphwalker.core.model.Model.RuntimeModel;
 public class TestExecutor implements Executor, Observer {
 
   protected static final Logger logger = LoggerFactory.getLogger(TestExecutor.class);
-  private final Configuration configuration;
-  private final MachineConfiguration machineConfiguration;
-  private final Map<Context, MachineException> failures = new HashMap<>();
-  private final Machine machine;
-  private Result result;
+  protected final Configuration configuration;
+  protected final MachineConfiguration machineConfiguration;
+  protected final Map<Context, MachineException> failures = new HashMap<>();
+  protected final Machine machine;
+  protected Result result;
   public TestExecutor(Configuration configuration) throws IOException {
     this.configuration = configuration;
     this.machineConfiguration = createMachineConfiguration(AnnotationUtils.findTests());
