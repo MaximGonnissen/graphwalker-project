@@ -31,6 +31,7 @@ import com.beust.jcommander.MissingCommandException;
 import com.beust.jcommander.ParameterException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.sun.jersey.api.container.grizzly2.GrizzlyServerFactory;
 import com.sun.jersey.api.core.DefaultResourceConfig;
@@ -810,11 +811,15 @@ public class CLI {
     }
 
     executor.getMachine().getCurrentContext().setPathGenerator(pathGenerator);
+    Context unifiedContext = executor.getMachine().getCurrentContext();
 
-    StringBuilder path = new StringBuilder();
+    JsonArray path = new JsonArray();
     executor.getMachine().addObserver((machine, element, type) -> {
+      if (machine.getCurrentContext() != unifiedContext) {  // We only add the path for the unified context
+        return;
+      }
       if (EventType.BEFORE_ELEMENT.equals(type)) {
-        path.append(Util.getStepAsJSON(machine, benchmark.verbose, false));
+        path.add(Util.getStepForPathCreationAsJSON(machine));
       }
     });
 
