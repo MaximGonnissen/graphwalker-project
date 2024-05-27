@@ -20,4 +20,9 @@ public class LateInitBenchmarkPath {
   public BenchmarkPath constructBenchmarkPath(Model model) {
     return BenchmarkPathParser.parseRunFile(model, pathFile, directory);
   }
+
+  @Override
+  public String toString() {
+    return "LateInitBenchmarkPath{pathFile='" + pathFile + "', directory='" + directory + "'}";
+  }
 }
