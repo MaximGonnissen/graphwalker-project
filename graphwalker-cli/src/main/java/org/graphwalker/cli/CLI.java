@@ -529,6 +529,10 @@ public class CLI {
 
     Random seedGenerator = new Random(benchmark.seed);
 
+    if (benchmark.threads > 1) {
+      System.out.println("Warning: Running benchmark threaded will cause results to be non-deterministic.");
+    }
+
     int threadsCount = Math.max(0, benchmark.threads - 1);  // -1 because the main thread is also used
     Thread[] threads = new Thread[threadsCount];
 
