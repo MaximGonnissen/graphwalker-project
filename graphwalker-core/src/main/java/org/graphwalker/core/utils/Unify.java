@@ -130,6 +130,7 @@ public class Unify {
 
           Vertex newVertex = new Vertex();
           newVertex.setName(vertex.getSharedState());
+          newVertex.setId(vertex.getId());
           sharedVertices.put(vertex.getSharedState(), newVertex);
           unifiedModel.addVertex(newVertex);
         }
