@@ -12,10 +12,10 @@ package org.graphwalker.restful;
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -26,6 +26,7 @@ package org.graphwalker.restful;
  * #L%
  */
 
+import com.google.gson.JsonObject;
 import org.apache.commons.io.FilenameUtils;
 import org.graalvm.polyglot.Value;
 import org.graphwalker.core.machine.Context;
@@ -67,7 +68,7 @@ public abstract class Util {
 
       Value bindings = machine.getCurrentContext().getExecutionEnvironment().getBindings("js");
       JSONArray jsonKeys = new JSONArray();
-      for (String key : bindings. getMemberKeys() ) {
+      for (String key : bindings.getMemberKeys()) {
         JSONObject jsonKey = new JSONObject();
         jsonKey.put(key, bindings.getMember(key));
         jsonKeys.put(jsonKey);
@@ -109,6 +110,12 @@ public abstract class Util {
       }
       object.put("unvisitedElements", jsonElements);
     }
+    return object;
+  }
+
+  public static JsonObject getStepForPathCreationAsJSON(Machine machine) {
+    JsonObject object = new JsonObject();
+    object.addProperty("elementId", machine.getCurrentContext().getCurrentElement().getId());
     return object;
   }
 }
