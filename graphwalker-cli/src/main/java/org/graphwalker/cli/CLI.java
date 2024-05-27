@@ -661,6 +661,8 @@ public class CLI {
       long maxTestSuiteSize = Long.MIN_VALUE;
       long totalVertexVisits = 0;
       long totalEdgeVisits = 0;
+      long totalUnvisitedVertices = 0;
+      long totalUnvisitedEdges = 0;
       Map<String, Long> totalVertexVisitsMap = new HashMap<>();
       Map<String, Long> totalEdgeVisitsMap = new HashMap<>();
 
@@ -681,6 +683,8 @@ public class CLI {
         maxTestSuiteSize = Math.max(maxTestSuiteSize, result.testSuiteSize);
         totalVertexVisits += result.VertexVisits.values().stream().mapToLong(Long::longValue).sum();
         totalEdgeVisits += result.EdgeVisits.values().stream().mapToLong(Long::longValue).sum();
+        totalUnvisitedVertices += result.VertexVisits.values().stream().filter(v -> v == 0).count();
+        totalUnvisitedEdges += result.EdgeVisits.values().stream().filter(v -> v == 0).count();
 
         for (String vertex : result.VertexVisits.keySet()) {
           if (!totalVertexVisitsMap.containsKey(vertex)) {
@@ -730,6 +734,10 @@ public class CLI {
       groupJson.addProperty("TotalEdgeVisits", totalEdgeVisits);
       groupJson.addProperty("AverageVertexVisits", totalVertexVisits / groups.get(group).size());
       groupJson.addProperty("AverageEdgeVisits", totalEdgeVisits / groups.get(group).size());
+      groupJson.addProperty("TotalUnvisitedVertices", totalUnvisitedVertices);
+      groupJson.addProperty("TotalUnvisitedEdges", totalUnvisitedEdges);
+      groupJson.addProperty("AverageUnvisitedVertices", totalUnvisitedVertices / groups.get(group).size());
+      groupJson.addProperty("AverageUnvisitedEdges", totalUnvisitedEdges / groups.get(group).size());
       groupJson.add("TotalVertexVisitsIndividual", gson.toJsonTree(totalVertexVisitsMap));
       groupJson.add("TotalEdgeVisitsIndividual", gson.toJsonTree(totalEdgeVisitsMap));
       groupJson.add("AverageVertexVisitsIndividual", gson.toJsonTree(averageVertexVisitsMap));
