@@ -7,6 +7,7 @@ import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Model;
 import org.graphwalker.core.model.Vertex;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -192,6 +193,24 @@ public class Unify {
     return CreateUnifiedContext(rounding, unifiedModelName, unifiedContext, null, contextsToUnify);
   }
 
+  /**
+   * Reconstructs the predefined path for the unified model to ensure they're the same edge references. Assumes the predefined path was created for the unified model.
+   */
+  private static List<Edge> reconstructPredefinedPath(List<Edge> originalPredefinedPath, Model unifiedModel) {
+    List<Edge> reconstructedPredefinedPath = new ArrayList<>();
+
+    for (Edge edge : originalPredefinedPath) {
+      for (Edge unifiedEdge : unifiedModel.getEdges()) {
+        if (unifiedEdge.getId().equals(edge.getId())) {
+          reconstructedPredefinedPath.add(unifiedEdge);
+          break;
+        }
+      }
+    }
+
+    return reconstructedPredefinedPath;
+  }
+
   public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Context unifiedContext, List<Edge> predefinedPath, Context... contextsToUnify) {
     Model.RuntimeModel[] modelsToUnify = new Model.RuntimeModel[contextsToUnify.length];
     for (int i = 0; i < contextsToUnify.length; i++) {
@@ -203,7 +222,7 @@ public class Unify {
     unifiedModel.setName(unifiedModelName);
 
     if (predefinedPath != null) {
-      unifiedModel.setPredefinedPath(predefinedPath);
+      unifiedModel.setPredefinedPath(reconstructPredefinedPath(predefinedPath, unifiedModel));
       unifiedContext.setPathGenerator(new PredefinedPath(new PredefinedPathStopCondition()));
     }
 
