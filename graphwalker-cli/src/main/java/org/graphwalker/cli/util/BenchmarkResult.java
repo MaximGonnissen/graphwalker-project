@@ -40,13 +40,13 @@ public class BenchmarkResult {
 
   private void calculateVertexVisits(Profiler profiler, Context context) {
     for (Element element : context.getModel().getVertices()) {
-      VertexVisits.put(element.getName(), getElementVisitCount(profiler, context, element));
+      VertexVisits.put(element.getName() + "[" + element.getId() + "]", getElementVisitCount(profiler, context, element));
     }
   }
 
   private void calculateEdgeVisits(Profiler profiler, Context context) {
     for (Element element : context.getModel().getEdges()) {
-      EdgeVisits.put(element.getName(), getElementVisitCount(profiler, context, element));
+      EdgeVisits.put(element.getName() + "[" + element.getId() + "]", getElementVisitCount(profiler, context, element));
     }
   }
 
