@@ -184,6 +184,10 @@ public class Unify {
     return CreateUnifiedContext(1.0f, "UnifiedModel", unifiedContext, null, contextsToUnify);
   }
 
+  public static Context CreateUnifiedContext(List<Edge> predefinedPath, Context unifiedContext, Context... contextsToUnify) {
+    return CreateUnifiedContext(1.0f, "UnifiedModel", unifiedContext, null, contextsToUnify);
+  }
+
   public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Context unifiedContext, Context... contextsToUnify) {
     return CreateUnifiedContext(rounding, unifiedModelName, unifiedContext, null, contextsToUnify);
   }
