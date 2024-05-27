@@ -1,13 +1,14 @@
 package org.graphwalker.core.utils;
 
+import org.graphwalker.core.condition.PredefinedPathStopCondition;
+import org.graphwalker.core.generator.PredefinedPath;
 import org.graphwalker.core.machine.Context;
-import org.graphwalker.core.machine.ExecutionContext;
 import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Model;
 import org.graphwalker.core.model.Vertex;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Unify {
@@ -172,18 +173,22 @@ public class Unify {
   }
 
   public static Context CreateUnifiedContext(String unifiedModelName, Context unifiedContext, Context... contextsToUnify) {
-    return CreateUnifiedContext(1.0f, unifiedModelName, unifiedContext, contextsToUnify);
+    return CreateUnifiedContext(1.0f, unifiedModelName, unifiedContext, null, contextsToUnify);
   }
 
   public static Context CreateUnifiedContext(float rounding, Context unifiedContext, Context... contextsToUnify) {
-    return CreateUnifiedContext(rounding, "UnifiedModel", unifiedContext, contextsToUnify);
+    return CreateUnifiedContext(rounding, "UnifiedModel", unifiedContext, null, contextsToUnify);
   }
 
   public static Context CreateUnifiedContext(Context unifiedContext, Context... contextsToUnify) {
-    return CreateUnifiedContext(1.0f, "UnifiedModel", unifiedContext, contextsToUnify);
+    return CreateUnifiedContext(1.0f, "UnifiedModel", unifiedContext, null, contextsToUnify);
   }
 
   public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Context unifiedContext, Context... contextsToUnify) {
+    return CreateUnifiedContext(rounding, unifiedModelName, unifiedContext, null, contextsToUnify);
+  }
+
+  public static Context CreateUnifiedContext(float rounding, String unifiedModelName, Context unifiedContext, List<Edge> predefinedPath, Context... contextsToUnify) {
     Model.RuntimeModel[] modelsToUnify = new Model.RuntimeModel[contextsToUnify.length];
     for (int i = 0; i < contextsToUnify.length; i++) {
       modelsToUnify[i] = contextsToUnify[i].getModel();
@@ -193,6 +198,11 @@ public class Unify {
 
     unifiedModel.setName(unifiedModelName);
 
+    if (predefinedPath != null) {
+      unifiedModel.setPredefinedPath(predefinedPath);
+      unifiedContext.setPathGenerator(new PredefinedPath(new PredefinedPathStopCondition()));
+    }
+
     unifiedContext.setModel(unifiedModel.build());
 
     // Set the start element & copy pathGenerator from its context
@@ -200,7 +210,7 @@ public class Unify {
     for (Context context : contextsToUnify) {
       if (context.getNextElement() != null) {
         startElement = getPrefixedString(context.getNextElement().getName(), context.getModel().getName() + "_");
-        unifiedContext.setPathGenerator(context.getPathGenerator());
+        if (predefinedPath == null) unifiedContext.setPathGenerator(context.getPathGenerator());
         break;
       }
     }
