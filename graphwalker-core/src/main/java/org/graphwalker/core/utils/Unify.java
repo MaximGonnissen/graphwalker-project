@@ -292,14 +292,4 @@ public class Unify {
   public static String getPrefixedString(String string, String prefix) {
     return prefix + string;
   }
-
-  public static Map<String, Method> GetUnifiedMethodMap(Class<ExecutionContext>... implementationsToUnify) {
-    Map<String, Method> unifiedMethodMap = new HashMap<>();
-    for (Class<ExecutionContext> implementationToUnify : implementationsToUnify) {
-      for (Method method : implementationToUnify.getDeclaredMethods()) {
-        unifiedMethodMap.put(method.getName(), method);
-      }
-    }
-    return unifiedMethodMap;
-  }
 }
