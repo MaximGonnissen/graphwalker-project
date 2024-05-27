@@ -49,7 +49,6 @@ public final class UnifiedTestExecutor extends TestExecutor {
       contextsArray[i++] = context;
     }
 
-
     Context unifiedContext;
     if (predefinedPath != null) {
       unifiedContext = CreateUnifiedContext(predefinedPath, new JavaContext(), contextsArray);
