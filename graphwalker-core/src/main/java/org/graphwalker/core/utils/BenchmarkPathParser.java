@@ -92,27 +92,40 @@ public class BenchmarkPathParser {
   }
 
   private static List<BenchmarkPath> parseRunsSubdirectory(Model model, File runDir) {
+    return parseRunsSubdirectory(model, runDir, Integer.MAX_VALUE);
+  }
+
+  private static List<BenchmarkPath> parseRunsSubdirectory(Model model, File runDir, int runLimit) {
     List<BenchmarkPath> benchmarkPaths = new ArrayList<>();
 
+    int runCount = 0;
     for (File runFile : Objects.requireNonNull(runDir.listFiles())) {
       if (!isRunPathFile(runFile)) {
         continue;
       }
       BenchmarkPath benchmarkPath = parseRunFile(model, runFile, runDir);
       benchmarkPaths.add(benchmarkPath);
+
+      if (++runCount >= runLimit) {
+        break;
+      }
     }
 
     return benchmarkPaths;
   }
 
   private static List<BenchmarkPath> parseRunsDirectory(Model model, File runDir) {
+    return parseRunsDirectory(model, runDir, Integer.MAX_VALUE);
+  }
+
+  private static List<BenchmarkPath> parseRunsDirectory(Model model, File runDir, int runLimit) {
     List<BenchmarkPath> benchmarkPaths = new ArrayList<>();
 
     for (File runSubDir : Objects.requireNonNull(runDir.listFiles())) {
       if (!runSubDir.isDirectory()) {
         continue;
       }
-      List<BenchmarkPath> newBenchmarkPaths = parseRunsSubdirectory(model, runSubDir);
+      List<BenchmarkPath> newBenchmarkPaths = parseRunsSubdirectory(model, runSubDir, runLimit);
       benchmarkPaths.addAll(newBenchmarkPaths);
     }
 
@@ -120,13 +133,29 @@ public class BenchmarkPathParser {
   }
 
   public static List<BenchmarkPath> getBenchmarkPaths(Model model, String path) {
+    return getBenchmarkPaths(model, path, Integer.MAX_VALUE);
+  }
+
+  /**
+   * <p>Get a list of BenchmarkPaths from a Benchmark directory.</p>
+   * <p>Only the first runLimit runs per run directory are included.</p>
+   */
+  public static List<BenchmarkPath> getBenchmarkPaths(Model model, String path, int runLimit) {
     if (!isValidBenchmarkPath(path)) {
       throw new IllegalArgumentException("Path is not a valid Benchmark path.");
     }
-    return parseRunsDirectory(model, Objects.requireNonNull(getRunsDirectory(path)));
+    return parseRunsDirectory(model, Objects.requireNonNull(getRunsDirectory(path)), runLimit);
   }
 
   public static List<LateInitBenchmarkPath> getLateInitBenchmarkPaths(String path) {
+    return getLateInitBenchmarkPaths(path, Integer.MAX_VALUE);
+  }
+
+  /**
+   * <p>Get a list of LateInitBenchmarkPaths from a Benchmark directory.</p>
+   * <p>Only the first runLimit runs per run directory are included.</p>
+   */
+  public static List<LateInitBenchmarkPath> getLateInitBenchmarkPaths(String path, int runLimit) {
     if (!isValidBenchmarkPath(path)) {
       throw new IllegalArgumentException("Path is not a valid Benchmark path.");
     }
@@ -136,11 +165,15 @@ public class BenchmarkPathParser {
       if (!runSubDir.isDirectory()) {
         continue;
       }
+      int runCount = 0;
       for (File runFile : Objects.requireNonNull(runSubDir.listFiles())) {
         if (!isRunPathFile(runFile)) {
           continue;
         }
         lateInitBenchmarkPaths.add(new LateInitBenchmarkPath(runFile, runSubDir));
+        if (++runCount >= runLimit) {
+          break;
+        }
       }
     }
     return lateInitBenchmarkPaths;
