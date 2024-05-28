@@ -88,4 +88,13 @@ public final class UnifiedTestExecutor extends TestExecutor {
     Collection<Context> originalContexts = createContexts(machineConfiguration);
     return createMachine(originalContexts);
   }
+
+  public Result execute(boolean ignoreErrors, boolean onlyResultUnifiedContext) {
+    List<Context> originalContexts = machine.getContexts();
+    machine.getContexts().removeIf(context -> !context.getModel().getName().equals("UnifiedModel"));
+    Result result = super.execute(ignoreErrors);
+    machine.getContexts().clear();
+    machine.getContexts().addAll(originalContexts);
+    return result;
+  }
 }
