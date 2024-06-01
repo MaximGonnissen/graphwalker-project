@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.graphwalker.core.common.Objects.isNotNull;
 import static org.graphwalker.core.common.Objects.isNotNullOrEmpty;
 
 /**
@@ -209,9 +210,15 @@ public final class Result {
     if (isNotNullOrEmpty(failures)) {
       JSONArray jsonFailures = new JSONArray();
       for (MachineException exception : failures.values()) {
-        addError(getStackTrace(exception.getCause()));
         JSONObject jsonFailure = new JSONObject();
-        jsonFailure.put("failure", getStackTrace(exception.getCause()));
+        if (isNotNull(exception.getCause())) {
+          addError(getStackTrace(exception.getCause()));
+          jsonFailure.put("failure", getStackTrace(exception.getCause()));
+        }
+        else {
+          addError(getStackTrace(exception));
+          jsonFailure.put("failure", getStackTrace(exception));
+        }
         jsonFailures.put(jsonFailure);
       }
       results.put("failures", jsonFailures);
