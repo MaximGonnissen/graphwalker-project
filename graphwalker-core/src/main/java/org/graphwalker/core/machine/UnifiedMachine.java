@@ -121,7 +121,7 @@ public class UnifiedMachine extends MachineBase {
     }
 
     try {
-      String possibleModelName = element.getName().split("_")[0];
+      String possibleModelName = element.getName().split("_@_")[0];
       for (Context context : originalContexts) {
         if (context.getModel().getName().equals(possibleModelName)) {
           originalContextMap.put(element, context);
@@ -198,7 +198,7 @@ public class UnifiedMachine extends MachineBase {
   }
 
   private String getPrefixedName(Element element, Context context) {
-    return Unify.getPrefixedString(element.getName(), context.getModel().getName() + "_");
+    return Unify.getPrefixedString(element.getName(), context.getModel().getName() + "_@_");
   }
 
   private void walk() {
