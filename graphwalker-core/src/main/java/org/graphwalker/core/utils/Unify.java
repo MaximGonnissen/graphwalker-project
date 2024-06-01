@@ -7,7 +7,12 @@ import org.graphwalker.core.model.Edge;
 import org.graphwalker.core.model.Model;
 import org.graphwalker.core.model.Vertex;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class Unify {
 
@@ -30,7 +35,7 @@ public class Unify {
         double local_offset_x = 0;
         double local_offset_y = 0;
         for (Vertex vertex : model.getVertices()) {
-          if (vertex.getSharedState() != null)
+          if (!isEmpty(vertex.getSharedState()))
             continue;  // We don't take into account shared states for the local offset, since these aren't copied
           if (vertex.getProperties().containsKey("x") && vertex.getProperties().containsKey("y")) {
             local_offset_x += (double) vertex.getProperty("x");
@@ -43,7 +48,7 @@ public class Unify {
 
         // Add non-shared vertices
         for (Vertex vertex : model.getVertices()) {
-          if (vertex.getSharedState() == null)  // We handle shared states separately
+          if (isEmpty(vertex.getSharedState()))  // We handle shared states separately
           {
             Vertex newVertex = copyVertex(vertex, prefix, rounding);
             newVertex.setProperty("x", (double) newVertex.getProperty("x") - local_offset_x);
@@ -54,7 +59,7 @@ public class Unify {
 
         // Add non-shared edges
         for (Edge edge : model.getEdges()) {
-          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)  // We handle shared states separately
+          if (isEmpty(edge.getSourceVertex().getSharedState()) && isEmpty(edge.getTargetVertex().getSharedState()))  // We handle shared states separately
             unifiedModel.addEdge(copyEdge(edge, prefix, unifiedModel));
         }
       }
@@ -85,7 +90,7 @@ public class Unify {
 
         // Update coordinates with the global offset
         for (Vertex vertex : model.getVertices()) {
-          if (vertex.getSharedState() != null) continue;
+          if (!isEmpty(vertex.getSharedState())) continue;
           String unifiedVertexName = getPrefixedString(vertex.getName(), modelToUnify.getName() + "_@_");
           Vertex unifiedVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
           if (unifiedVertex == null) {
@@ -124,7 +129,7 @@ public class Unify {
 
         // We create a single vertex for each shared state
         for (Vertex vertex : model.getVertices()) {
-          if (vertex.getSharedState() == null) continue;
+          if (isEmpty(vertex.getSharedState())) continue;
           if (sharedVertices.containsKey(vertex.getSharedState())) continue;
 
           Vertex newVertex = new Vertex();
@@ -136,11 +141,11 @@ public class Unify {
 
         for (Edge edge : model.getEdges()) {
           // If the edge doesn't have either a shared source or target, we skip it, since we've already copied it
-          if (edge.getSourceVertex().getSharedState() == null && edge.getTargetVertex().getSharedState() == null)
+          if (isEmpty(edge.getSourceVertex().getSharedState()) && isEmpty(edge.getTargetVertex().getSharedState()))
             continue;
           Vertex sourceVertex = edge.getSourceVertex();
           Vertex targetVertex = edge.getTargetVertex();
-          if (sourceVertex.getSharedState() != null) {
+          if (!isEmpty(sourceVertex.getSharedState())) {
             sourceVertex = sharedVertices.get(sourceVertex.getSharedState());
           } else {
             String unifiedVertexName = getPrefixedString(sourceVertex.getName(), modelToUnify.getName() + "_@_");
@@ -149,7 +154,7 @@ public class Unify {
               throw new RuntimeException("Could not find source vertex for edge: " + edge.getId());
             }
           }
-          if (targetVertex.getSharedState() != null) {
+          if (!isEmpty(targetVertex.getSharedState())) {
             targetVertex = sharedVertices.get(targetVertex.getSharedState());
           } else {
             String unifiedVertexName = getPrefixedString(targetVertex.getName(), modelToUnify.getName() + "_@_");
@@ -258,7 +263,7 @@ public class Unify {
     if (vertex.getId() != null) {
       newVertex.setId(getPrefixedString(vertex.getId(), prefix));
     }
-    if (vertex.getSharedState() != null) {
+    if (!isEmpty(vertex.getSharedState())) {
       newVertex.setSharedState(vertex.getSharedState());  // Shouldn't ever reach this for the Unify command, but left for completeness
     }
     if (vertex.getRequirements() != null) {
