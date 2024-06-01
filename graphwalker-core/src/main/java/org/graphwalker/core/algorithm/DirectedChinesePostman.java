@@ -256,12 +256,15 @@ public class DirectedChinesePostman implements Algorithm {
   }
 
   private boolean isStronglyConnected(FloydWarshall floydWarshall) {
+    boolean stronglyConnected = true;
     for (int i = 0; i < vertexCount(state.runtimeModel); i++)
       for (int j = 0; j < vertexCount(state.runtimeModel); j++)
-        if (floydWarshall.getShortestDistance(state.runtimeModel.getVertices().get(i), state.runtimeModel.getVertices().get(j)) == Integer.MAX_VALUE)
-          return false;
+        if (floydWarshall.getShortestDistance(state.runtimeModel.getVertices().get(i), state.runtimeModel.getVertices().get(j)) == Integer.MAX_VALUE) {
+          System.err.println("No path from " + state.runtimeModel.getVertices().get(i).getName() + " to " + state.runtimeModel.getVertices().get(j).getName());
+          stronglyConnected = false;
+        }
 
-    return true;
+    return stronglyConnected;
   }
 
   private int getInDegree(Element element) {
