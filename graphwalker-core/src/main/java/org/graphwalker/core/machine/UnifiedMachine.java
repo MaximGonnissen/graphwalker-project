@@ -237,9 +237,13 @@ public class UnifiedMachine extends MachineBase {
   private void execute(Element element) {
     Context originalContext = getOriginalContext(element);
     if (isNull(originalContext)) {
-      return;
+      throw new MachineException("No original context is defined for element: " + element.getName());
     }
+
     Element originalElement = getOriginalElement(element);
+    if (isNull(originalElement)) {
+      throw new MachineException("No original element is defined for element: " + element.getName());
+    }
 
     originalContext.execute(originalElement);
   }
