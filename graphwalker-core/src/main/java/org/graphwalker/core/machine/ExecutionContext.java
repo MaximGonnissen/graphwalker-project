@@ -268,6 +268,9 @@ public abstract class ExecutionContext implements Context {
   }
 
   public void execute(Element element) {
+    if (element == null) {
+      throw new NullPointerException("Element is null when executing in model: '" + getModel().getName() + "'");
+    }
     if (!element.hasName()) {
       return;
     }
