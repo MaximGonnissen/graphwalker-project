@@ -42,7 +42,7 @@ public class DirectedChinesePostman implements Algorithm {
     }
 
     if (dCPPath.isEmpty()) {
-      return randomStep();  // TODO: This is a temporary(?) fix to prevent the algorithm from getting stuck when using multiple models
+      throw new NoPathFoundException("Directed Chinese Postman path exhausted at element: " + context.getCurrentElement().getName() + " (Are you using a non-unified model?)");
     }
 
     return dCPPath.remove(0);
