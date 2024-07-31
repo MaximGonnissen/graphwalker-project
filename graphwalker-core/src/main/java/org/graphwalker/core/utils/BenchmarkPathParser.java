@@ -75,6 +75,8 @@ public class BenchmarkPathParser {
 
     JsonArray jsonArray = new Gson().fromJson(fileContent, JsonArray.class).getAsJsonArray();
 
+    List<String> elementsNotFound = new ArrayList<>();
+
     for (JsonElement jsonElement : jsonArray) {
       JsonObject jsonObject = jsonElement.getAsJsonObject();
       String elementId = jsonObject.get("elementId").getAsString();
@@ -83,7 +85,10 @@ public class BenchmarkPathParser {
           path.add(edge);
           break;
         }
-        System.err.println("Could not find edge with id: " + elementId);
+        if (!elementsNotFound.contains(elementId)) {
+          System.err.println("Could not find edge with id: " + elementId + " (This might be harmless if the edge was redundant in a unified model).");
+        }
+        elementsNotFound.add(elementId);
       }
     }
 
