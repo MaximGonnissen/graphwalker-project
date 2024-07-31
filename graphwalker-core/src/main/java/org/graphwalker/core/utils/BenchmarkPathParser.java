@@ -83,6 +83,9 @@ public class BenchmarkPathParser {
           path.add(edge);
           break;
         }
+        System.err.println("Could not find edge with id: " + elementId);
+        System.err.println("Are your edge ids in the right format? (e.g. Login_@_...");
+        throw new RuntimeException("Could not find edge with id: " + elementId);
       }
     }
 
