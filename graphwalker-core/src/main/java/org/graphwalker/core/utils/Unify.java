@@ -28,7 +28,7 @@ public class Unify {
     // First stage model unification, copy all non-shared vertices & edges
     {
       for (Model.RuntimeModel modelToUnify : modelsToUnify) {
-        String prefix = modelToUnify.getName() + "_@_";
+        String prefix = modelToUnify.getName() + "_";
         Model model = new Model(modelToUnify);
 
         // Find centre of local graph so we can centre the local graph in the unified model for later spreading
@@ -91,7 +91,7 @@ public class Unify {
         // Update coordinates with the global offset
         for (Vertex vertex : model.getVertices()) {
           if (!isEmpty(vertex.getSharedState())) continue;
-          String unifiedVertexName = getPrefixedString(vertex.getName(), modelToUnify.getName() + "_@_");
+          String unifiedVertexName = getPrefixedString(vertex.getName(), modelToUnify.getName() + "_");
           Vertex unifiedVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
           if (unifiedVertex == null) {
             continue;
@@ -148,7 +148,7 @@ public class Unify {
           if (!isEmpty(sourceVertex.getSharedState())) {
             sourceVertex = sharedVertices.get(sourceVertex.getSharedState());
           } else {
-            String unifiedVertexName = getPrefixedString(sourceVertex.getName(), modelToUnify.getName() + "_@_");
+            String unifiedVertexName = getPrefixedString(sourceVertex.getName(), modelToUnify.getName() + "_");
             sourceVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
             if (sourceVertex == null) {
               throw new RuntimeException("Could not find source vertex for edge: " + edge.getId());
@@ -157,14 +157,14 @@ public class Unify {
           if (!isEmpty(targetVertex.getSharedState())) {
             targetVertex = sharedVertices.get(targetVertex.getSharedState());
           } else {
-            String unifiedVertexName = getPrefixedString(targetVertex.getName(), modelToUnify.getName() + "_@_");
+            String unifiedVertexName = getPrefixedString(targetVertex.getName(), modelToUnify.getName() + "_");
             targetVertex = unifiedModel.getVertices().stream().filter(v -> v.getName().equals(unifiedVertexName)).findFirst().orElse(null);
             if (targetVertex == null) {
               throw new RuntimeException("Could not find target vertex for edge: " + edge.getId());
             }
           }
 
-          Edge newEdge = copyEdge(edge, modelToUnify.getName() + "_@_");
+          Edge newEdge = copyEdge(edge, modelToUnify.getName() + "_");
           newEdge.setSourceVertex(sourceVertex);
           newEdge.setTargetVertex(targetVertex);
           unifiedModel.addEdge(newEdge);
@@ -234,7 +234,7 @@ public class Unify {
     String startElement = null;
     for (Context context : contextsToUnify) {
       if (context.getNextElement() != null) {
-        startElement = getPrefixedString(context.getNextElement().getName(), context.getModel().getName() + "_@_");
+        startElement = getPrefixedString(context.getNextElement().getName(), context.getModel().getName() + "_");
         if (predefinedPath == null) unifiedContext.setPathGenerator(context.getPathGenerator());
         break;
       }
