@@ -141,7 +141,7 @@ public class UnifiedMachine extends MachineBase {
       }
     }
 
-    logger.error("Could not find original context for element: {}", element.getName());
+    logger.error("Could not get original context for element: {} ({}) - this might be harmless if it is a unified model.", element.getName(), element.getId());
     return null;
   }
 
@@ -153,7 +153,7 @@ public class UnifiedMachine extends MachineBase {
     Context originalContext = getOriginalContext(element);
 
     if (isNull(originalContext)) {
-      logger.error("Could not find original context for element: {}", element.getName());
+      logger.error("Could not find original context for element: {} ({}) - this might be harmless if it is a unified model.", element.getName(), element.getId());
       return null;
     }
 
